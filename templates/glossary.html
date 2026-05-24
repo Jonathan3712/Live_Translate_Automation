@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glossary Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --surface2: #1a1a24;
+    --border: #2a2a3a; --accent: #7c6af7; --green: #22c55e;
+    --red: #ef4444; --text: #e8e8f0; --muted: #6b6b80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; padding: 2rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
+  .header-left { display: flex; align-items: center; gap: 1rem; }
+  .header-right { display: flex; gap: 0.75rem; align-items: center; }
+  .logo { width: 42px; height: 42px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+  h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .back-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: color 0.2s; cursor: pointer; }
+  .back-btn:hover { color: var(--text); }
+  .add-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; max-width: 860px; }
+  .card-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+  .add-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end; }
+  .field label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600; }
+  input[type="text"] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 0.9rem; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+  input[type="text"]:focus { border-color: var(--accent); }
+  .urdu-input { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; font-size: 1rem; }
+  button { padding: 0.65rem 1.2rem; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s; }
+  button:hover { opacity: 0.85; }
+  .btn-add  { background: var(--accent); color: #fff; white-space: nowrap; }
+  .btn-save { background: var(--green); color: #000; padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+  .btn-del  { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 0.4rem 0.65rem; font-size: 0.75rem; }
+  .btn-play { background: rgba(124,106,247,0.15); border: 1px solid rgba(124,106,247,0.3); color: var(--accent); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
+  .btn-play:hover  { background: rgba(124,106,247,0.3); }
+  .btn-play.playing { background: var(--accent); color: #fff; }
+  .stats { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.8rem; color: var(--muted); }
+  .stats strong { color: var(--accent); font-size: 1rem; }
+  .search-row { margin-bottom: 1rem; max-width: 860px; }
+  .search-row input { width: 100%; padding: 0.65rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem; outline: none; }
+  .search-row input:focus { border-color: var(--accent); }
+  .table-wrap { max-width: 860px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); }
+  tr.term-row { border-bottom: 1px solid var(--border); }
+  tr.term-row:last-child { border: none; }
+  tr.term-row:hover { background: var(--surface2); }
+  td { padding: 0.75rem 1rem; vertical-align: middle; }
+  .td-en { font-size: 0.9rem; font-weight: 600; }
+  .td-ur { font-family: 'Noto Nastaliq Urdu', serif; font-size: 1rem; color: var(--accent); direction: rtl; }
+  .td-ur-edit { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; font-size: 1rem; background: var(--bg); border: 1px solid var(--accent); border-radius: 6px; padding: 0.3rem 0.6rem; color: var(--text); outline: none; width: 100%; }
+  .td-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+  .locked-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(124,106,247,0.15); color: var(--accent); border: 1px solid rgba(124,106,247,0.3); padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
+  .empty-state { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+  #toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1.25rem; font-size: 0.85rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">📖</div>
+    <div>
+      <h1>Translation <span>Glossary</span></h1>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Locked terms — Google Translate cannot override these</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <a href="/" class="back-btn">← Control Panel</a>
+    <button class="back-btn" onclick="downloadGlossary()">⬇ Export JSON</button>
+    <label class="back-btn">⬆ Import JSON
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importGlossary(event)" />
+    </label>
+  </div>
+</div>
+
+<div class="add-card">
+  <div class="card-title">Add New Term</div>
+  <div class="add-row">
+    <div class="field">
+      <label>English (as spoken)</label>
+      <input type="text" id="new-en" placeholder="e.g. Holy Spirit" />
+    </div>
+    <div class="field">
+      <label>Urdu (locked translation)</label>
+      <input type="text" id="new-ur" class="urdu-input" placeholder="e.g. روح القدس" />
+    </div>
+    <button class="btn-add" onclick="addTerm()">+ Add Term</button>
+  </div>
+  <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--muted);">
+    💡 Tip: Add phrases too — "Jesus Christ" will match before "Jesus" automatically.
+  </div>
+</div>
+
+<div class="stats">
+  <div><strong id="term-count">0</strong> locked terms</div>
+  <div>Saved automatically to <code style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;">glossary.json</code></div>
+</div>
+
+<div class="search-row">
+  <input type="text" id="search" placeholder="Search terms…" oninput="renderTable()" />
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:35%">English</th>
+        <th style="width:40%">Urdu (locked)</th>
+        <th style="width:25%;text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="glossary-body">
+      <tr><td colspan="3"><div class="empty-state">Loading…</div></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let glossary = {};
+
+async function loadGlossary() {
+  const r  = await fetch('/api/glossary');
+  glossary = await r.json();
+  renderTable();
+}
+
+function renderTable() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const tbody  = document.getElementById('glossary-body');
+  document.getElementById('term-count').textContent = Object.keys(glossary).length;
+
+  const filtered = Object.entries(glossary)
+    .filter(([en, ur]) => en.toLowerCase().includes(search) || ur.includes(search))
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">No terms found.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(([en, ur]) => {
+    const safeEn = CSS.escape(en);
+    const encEn  = encodeURIComponent(en);
+    const safeUr = ur.replace(/"/g, '&quot;');
+    return (
+      '<tr class="term-row">' +
+        '<td class="td-en">' + en + ' <span class="locked-badge">locked</span></td>' +
+        '<td class="td-ur" id="urdu-cell-' + safeEn + '">' +
+          '<div style="display:flex;align-items:center;gap:0.5rem;justify-content:flex-end;">' +
+            '<span>' + ur + '</span>' +
+            '<button class="btn-play" data-urdu="' + safeUr + '" title="Hear pronunciation">🔊</button>' +
+          '</div></td>' +
+        '<td><div class="td-actions">' +
+          '<button class="btn-del" data-del="' + encEn + '">🗑 Delete</button>' +
+        '</div></td></tr>'
+    );
+  }).join('');
+
+  tbody.querySelectorAll('.btn-play').forEach(btn => {
+    btn.onclick = () => playUrdu(btn.dataset.urdu, btn);
+  });
+  tbody.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = () => deleteTerm(decodeURIComponent(btn.dataset.del));
+  });
+}
+
+async function addTerm() {
+  const en = document.getElementById('new-en').value.trim();
+  const ur = document.getElementById('new-ur').value.trim();
+  if (!en || !ur) { toast('⚠ Both fields required'); return; }
+  const r = await fetch('/api/glossary', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({english: en, urdu: ur})
+  });
+  const j = await r.json();
+  if (j.ok) {
+    glossary[en] = ur;
+    document.getElementById('new-en').value = '';
+    document.getElementById('new-ur').value = '';
+    renderTable();
+    toast('✅ "' + en + '" added');
+  } else { toast('⚠ ' + j.msg); }
+}
+
+async function deleteTerm(en) {
+  if (!confirm('Remove "' + en + '" from glossary?')) return;
+  const r = await fetch('/api/glossary/' + encodeURIComponent(en), { method: 'DELETE' });
+  const j = await r.json();
+  if (j.ok) { delete glossary[en]; renderTable(); toast('🗑 "' + en + '" removed'); }
+}
+
+async function playUrdu(text, btn) {
+  btn.classList.add('playing');
+  btn.textContent = '⏳';
+  try {
+    const r = await fetch('/api/pronounce', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({urdu: text})
+    });
+    if (!r.ok) throw new Error('Server error');
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = new Audio(url);
+    a.onended = () => {
+      btn.classList.remove('playing');
+      btn.textContent = '🔊';
+      URL.revokeObjectURL(url);
+    };
+    a.play();
+  } catch(e) {
+    btn.classList.remove('playing');
+    btn.textContent = '🔊';
+    toast('⚠ Could not play audio');
+  }
+}
+window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+
+function downloadGlossary() {
+  const blob = new Blob([JSON.stringify(glossary, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'glossary.json';
+  a.click();
+  toast('⬇ Exported glossary.json');
+}
+
+async function importGlossary(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      toast('⚠ Invalid JSON — must be {"English": "Urdu"} format'); return;
+    }
+    const r = await fetch('/api/glossary/import', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const j = await r.json();
+    if (j.ok) { await loadGlossary(); toast('✅ Imported ' + j.count + ' terms — ' + j.total + ' total'); }
+    else { toast('⚠ ' + j.msg); }
+  } catch(e) { toast('⚠ Invalid JSON file'); }
+  event.target.value = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement.id === 'new-ur') addTerm();
+});
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+loadGlossary();
+</script>
+</body>
+</html>

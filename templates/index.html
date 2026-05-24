@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Transcription — Control Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #2a2a3a;
+    --accent: #7c6af7;
+    --accent2: #f97316;
+    --green: #22c55e;
+    --red: #ef4444;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  .logo {
+    width: 42px; height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+  h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+  .card-title {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  /* Status pill */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 99px; padding: 0.4rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.4s infinite; }
+  .dot.busy   { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+  .dot.error  { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  /* Buttons */
+  .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+  button {
+    flex: 1; padding: 0.75rem;
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.9rem; cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-start { background: var(--green); color: #000; }
+  .btn-stop  { background: var(--red);   color: #fff; }
+  /* Live feed */
+  #feed {
+    max-height: 320px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+  .entry {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.85rem 1rem;
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .entry-ts { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted); margin-bottom:0.35rem; }
+  .entry-en { font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.3rem; }
+  .entry-ur {
+    font-size: 1rem; direction: rtl; text-align: right;
+    color: var(--accent); line-height: 1.8;
+  }
+  .play-btn {
+    margin-top: 0.4rem; padding: 0.3rem 0.8rem;
+    background: var(--accent); color: #fff;
+    border-radius: 6px; font-size: 0.75rem;
+    cursor: pointer; border: none;
+  }
+  /* Error banner */
+  #error-banner {
+    display: none; background: #3a1010; border: 1px solid var(--red);
+    border-radius: 10px; padding: 0.85rem 1rem;
+    font-size: 0.85rem; color: #fca5a5; margin-bottom: 1rem;
+  }
+  .span2 { grid-column: span 2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🎙</div>
+  <div>
+    <h1>Live <span>Transcription</span> System</h1>
+    <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Control Panel · English → Urdu · <a href="/glossary" style="color:var(--accent);text-decoration:none;">📖 Glossary</a></div>
+  </div>
+</div>
+
+<div id="error-banner"></div>
+
+<div class="grid">
+
+  <!-- Status & Controls -->
+  <div class="card span2">
+    <div class="card-title">System Status</div>
+    <div class="status-pill">
+      <div class="dot" id="dot"></div>
+      <span id="status-label">idle</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn-start" id="btn-start" onclick="startSystem()">▶ Start</button>
+      <button class="btn-stop"  id="btn-stop"  onclick="stopSystem()" disabled>■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Live transcript feed -->
+  <div class="card span2">
+    <div class="card-title">Live Feed — last 20 segments</div>
+    <div id="feed">
+      <div class="placeholder" style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">
+        Hit <strong>Start</strong> to begin listening…
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const statusMap = {
+  idle:         { label:'Idle',         dotClass:'' },
+  listening:    { label:'Listening…',   dotClass:'active' },
+  transcribing: { label:'Transcribing…',dotClass:'busy' },
+  translating:  { label:'Translating…', dotClass:'busy' },
+  error:        { label:'Error',        dotClass:'error' },
+};
+
+function setStatus(s) {
+  const m = statusMap[s] || statusMap.idle;
+  document.getElementById('status-label').textContent = m.label;
+  const dot = document.getElementById('dot');
+  dot.className = 'dot ' + m.dotClass;
+}
+
+function addEntry(e) {
+  const feed = document.getElementById('feed');
+
+  // Clear placeholder text on first entry
+  if (feed.querySelector('.placeholder')) {
+    feed.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML =
+    '<div class="entry-ts">' + e.ts + '</div>' +
+    '<div class="entry-en">' + e.english + '</div>' +
+    '<div class="entry-ur">' + e.urdu + '</div>';
+  feed.prepend(div);
+
+  // Keep max 20 entries
+  while (feed.children.length > 20) feed.removeChild(feed.lastChild);
+}
+
+// SSE
+const es = new EventSource('/stream');
+es.onmessage = (ev) => {
+  const d = JSON.parse(ev.data);
+  if (d.type === 'ping') return;
+  if (d.type === 'init') {
+    d.history.forEach(addEntry);
+    setStatus(d.status);
+  }
+  if (d.type === 'status') setStatus(d.status);
+  if (d.type === 'transcript') addEntry(d);
+  if (d.type === 'error') {
+    const b = document.getElementById('error-banner');
+    b.textContent = '⚠ ' + d.message;
+    b.style.display = 'block';
+    setStatus('error');
+  }
+};
+
+// Controls
+async function startSystem() {
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('error-banner').style.display = 'none';
+  const r = await fetch('/start', {method:'POST'});
+  const j = await r.json();
+  if (j.ok) {
+    document.getElementById('btn-stop').disabled = false;
+  } else {
+    document.getElementById('btn-start').disabled = false;
+    const b = document.getElementById('error-banner');
+    b.textContent = '⚠ ' + j.msg;
+    b.style.display = 'block';
+  }
+}
+
+async function stopSystem() {
+  await fetch('/stop', {method:'POST'});
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+}
+
+</script>
+</body>
+</html>
