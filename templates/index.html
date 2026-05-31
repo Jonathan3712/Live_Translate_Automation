@@ -7,109 +7,65 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --border: #2a2a3a;
-    --accent: #7c6af7;
-    --accent2: #f97316;
-    --green: #22c55e;
-    --red: #ef4444;
-    --text: #e8e8f0;
-    --muted: #6b6b80;
+    --bg: #0a0a0f; --surface: #13131a; --border: #2a2a3a;
+    --accent: #7c6af7; --accent2: #f97316;
+    --green: #22c55e; --red: #ef4444; --text: #e8e8f0; --muted: #6b6b80;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  .header {
-    display: flex; align-items: center; gap: 1rem;
-    margin-bottom: 2.5rem;
-  }
-  .logo {
-    width: 42px; height: 42px;
-    background: var(--accent);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.2rem;
-  }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; padding: 2rem; }
+
+  .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+  .logo { width: 42px; height: 42px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
   h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
   h1 span { color: var(--accent); }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1.5rem;
-  }
-  .card-title {
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--muted);
-    margin-bottom: 1rem;
-  }
-  /* Status pill */
-  .status-pill {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 99px; padding: 0.4rem 1rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
-  }
-  .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--muted);
-    transition: background 0.3s;
-  }
+  .subtitle { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .subtitle a { color: var(--accent); text-decoration: none; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; max-width: 900px; }
+  .span2 { grid-column: span 2; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .card-title { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+  /* Status */
+  .status-pill { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 99px; padding: 0.4rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
   .dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.4s infinite; }
   .dot.busy   { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
   .dot.error  { background: var(--red); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
   /* Buttons */
-  .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
-  button {
-    flex: 1; padding: 0.75rem;
-    border: none; border-radius: 10px;
-    font-family: 'Syne', sans-serif; font-weight: 700;
-    font-size: 0.9rem; cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-  }
-  button:active { transform: scale(0.97); }
-  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+  .btn { flex:1; padding:0.75rem; border:none; border-radius:10px; font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; cursor:pointer; transition:opacity 0.2s,transform 0.1s; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .btn-start { background: var(--green); color: #000; }
   .btn-stop  { background: var(--red);   color: #fff; }
-  /* Live feed */
-  #feed {
-    max-height: 320px; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 0.75rem;
-  }
-  .entry {
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 10px; padding: 0.85rem 1rem;
-    animation: fadeIn 0.4s ease;
-  }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
-  .entry-ts { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted); margin-bottom:0.35rem; }
-  .entry-en { font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.3rem; }
-  .entry-ur {
-    font-size: 1rem; direction: rtl; text-align: right;
-    color: var(--accent); line-height: 1.8;
-  }
-  .play-btn {
-    margin-top: 0.4rem; padding: 0.3rem 0.8rem;
-    background: var(--accent); color: #fff;
-    border-radius: 6px; font-size: 0.75rem;
-    cursor: pointer; border: none;
-  }
-  /* Error banner */
-  #error-banner {
-    display: none; background: #3a1010; border: 1px solid var(--red);
-    border-radius: 10px; padding: 0.85rem 1rem;
-    font-size: 0.85rem; color: #fca5a5; margin-bottom: 1rem;
-  }
-  .span2 { grid-column: span 2; }
+
+  /* Language pills */
+  .lang-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .lang-pill { padding: 0.4rem 0.9rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--muted); transition: all 0.2s; user-select: none; }
+  .lang-pill:hover { border-color: var(--accent); color: var(--text); }
+  .lang-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .lang-pill.disabled { opacity: 0.4; cursor: not-allowed; }
+  #current-lang { font-size: 0.85rem; color: var(--accent); font-weight: 700; margin-top: 0.75rem; }
+
+  /* Device selector */
+  select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.85rem; outline: none; cursor: pointer; }
+  select:focus { border-color: var(--accent); }
+  select:disabled { opacity: 0.4; }
+
+  /* Feed */
+  #feed { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.65rem; }
+  .entry { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .entry-ts   { font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--muted); margin-bottom:0.25rem; }
+  .entry-en   { font-size:0.88rem; line-height:1.5; margin-bottom:0.35rem; }
+  .entry-tr   { font-size:0.95rem; color:var(--accent); line-height:1.8; }
+  .entry-badge { font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:0.2rem; }
+
+  /* Error */
+  #error-banner { display:none; background:#3a1010; border:1px solid var(--red); border-radius:10px; padding:0.85rem 1rem; font-size:0.85rem; color:#fca5a5; margin-bottom:1rem; max-width:900px; }
 </style>
 </head>
 <body>
@@ -117,8 +73,8 @@
 <div class="header">
   <div class="logo">🎙</div>
   <div>
-    <h1>Live <span>Transcription</span> System</h1>
-    <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Control Panel · English → Urdu · <a href="/glossary" style="color:var(--accent);text-decoration:none;">📖 Glossary</a></div>
+    <h1>Live <span>Transcription</span></h1>
+    <div class="subtitle">Control Panel &nbsp;·&nbsp; <a href="/glossary">📖 Glossary</a></div>
   </div>
 </div>
 
@@ -126,25 +82,40 @@
 
 <div class="grid">
 
-  <!-- Status & Controls -->
-  <div class="card span2">
+  <!-- Controls -->
+  <div class="card">
     <div class="card-title">System Status</div>
     <div class="status-pill">
       <div class="dot" id="dot"></div>
-      <span id="status-label">idle</span>
+      <span id="status-label">Idle</span>
     </div>
     <div class="btn-row">
-      <button class="btn-start" id="btn-start" onclick="startSystem()">▶ Start</button>
-      <button class="btn-stop"  id="btn-stop"  onclick="stopSystem()" disabled>■ Stop</button>
+      <button class="btn btn-start" id="btn-start" onclick="startSystem()">▶ Start</button>
+      <button class="btn btn-stop"  id="btn-stop"  onclick="stopSystem()" disabled>■ Stop</button>
     </div>
   </div>
 
-  <!-- Live transcript feed -->
+  <!-- Mic selector -->
+  <div class="card">
+    <div class="card-title">🎙 Input Device</div>
+    <select id="device-select" onchange="selectDevice(this)">
+      <option value="">System Default</option>
+    </select>
+  </div>
+
+  <!-- Language selector -->
+  <div class="card span2">
+    <div class="card-title">Output Language — select before starting</div>
+    <div class="lang-grid" id="lang-grid"></div>
+    <div id="current-lang">Selected: Urdu · اردو</div>
+  </div>
+
+  <!-- Live feed -->
   <div class="card span2">
     <div class="card-title">Live Feed — last 20 segments</div>
     <div id="feed">
       <div class="placeholder" style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">
-        Hit <strong>Start</strong> to begin listening…
+        Select a language, then hit <strong>Start</strong> to begin…
       </div>
     </div>
   </div>
@@ -152,52 +123,100 @@
 </div>
 
 <script>
-const statusMap = {
-  idle:         { label:'Idle',         dotClass:'' },
-  listening:    { label:'Listening…',   dotClass:'active' },
-  transcribing: { label:'Transcribing…',dotClass:'busy' },
-  translating:  { label:'Translating…', dotClass:'busy' },
-  error:        { label:'Error',        dotClass:'error' },
-};
+let currentLang = 'ur';
+let allLangs    = {};
+let isRunning   = false;
 
+// ── Status ────────────────────────────────────────────────────────────────────
+const statusMap = {
+  idle:         {label:'Idle',          cls:''},
+  listening:    {label:'Listening…',    cls:'active'},
+  transcribing: {label:'Transcribing…', cls:'busy'},
+  translating:  {label:'Translating…',  cls:'busy'},
+  error:        {label:'Error',         cls:'error'},
+};
 function setStatus(s) {
   const m = statusMap[s] || statusMap.idle;
   document.getElementById('status-label').textContent = m.label;
-  const dot = document.getElementById('dot');
-  dot.className = 'dot ' + m.dotClass;
+  document.getElementById('dot').className = 'dot ' + m.cls;
 }
 
+// ── Language pills ─────────────────────────────────────────────────────────
+async function loadLanguages() {
+  const r = await fetch('/api/languages');
+  allLangs = await r.json();
+  const grid = document.getElementById('lang-grid');
+  grid.innerHTML = '';
+  Object.entries(allLangs).forEach(([code, cfg]) => {
+    const btn = document.createElement('button');
+    btn.className = 'lang-pill' + (code === currentLang ? ' active' : '');
+    btn.textContent = cfg.name + ' · ' + cfg.label;
+    btn.dataset.code = code;
+    btn.onclick = () => selectLang(code, btn);
+    grid.appendChild(btn);
+  });
+  updateCurrentLabel();
+}
+
+async function selectLang(code, btn) {
+  if (isRunning) return;
+  const r = await fetch('/api/language', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({lang: code})
+  });
+  const j = await r.json();
+  if (j.ok) {
+    currentLang = code;
+    document.querySelectorAll('.lang-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateCurrentLabel();
+  }
+}
+
+function updateCurrentLabel() {
+  const cfg = allLangs[currentLang];
+  if (cfg) {
+    document.getElementById('current-lang').textContent =
+      'Selected: ' + cfg.name + ' · ' + cfg.label;
+  }
+}
+
+// ── Feed ──────────────────────────────────────────────────────────────────────
 function addEntry(e) {
   const feed = document.getElementById('feed');
-
-  // Clear placeholder text on first entry
-  if (feed.querySelector('.placeholder')) {
-    feed.innerHTML = '';
-  }
+  if (feed.querySelector('.placeholder')) feed.innerHTML = '';
 
   const div = document.createElement('div');
   div.className = 'entry';
+  const langName = (allLangs[e.lang] || {}).name || e.lang_name || e.lang || '';
   div.innerHTML =
     '<div class="entry-ts">' + e.ts + '</div>' +
     '<div class="entry-en">' + e.english + '</div>' +
-    '<div class="entry-ur">' + e.urdu + '</div>';
+    (langName ? '<div class="entry-badge">' + langName + '</div>' : '') +
+    '<div class="entry-tr">' + e.urdu + '</div>';
   feed.prepend(div);
-
-  // Keep max 20 entries
   while (feed.children.length > 20) feed.removeChild(feed.lastChild);
 }
 
-// SSE
+// ── SSE ───────────────────────────────────────────────────────────────────────
 const es = new EventSource('/stream');
 es.onmessage = (ev) => {
   const d = JSON.parse(ev.data);
   if (d.type === 'ping') return;
   if (d.type === 'init') {
-    d.history.forEach(addEntry);
+    currentLang = d.target_lang || 'ur';
     setStatus(d.status);
+    (d.history || []).forEach(addEntry);
   }
-  if (d.type === 'status') setStatus(d.status);
+  if (d.type === 'status')     setStatus(d.status);
   if (d.type === 'transcript') addEntry(d);
+  if (d.type === 'lang_changed') {
+    currentLang = d.lang;
+    updateCurrentLabel();
+    document.querySelectorAll('.lang-pill').forEach(b => {
+      b.classList.toggle('active', b.dataset.code === d.lang);
+    });
+  }
   if (d.type === 'error') {
     const b = document.getElementById('error-banner');
     b.textContent = '⚠ ' + d.message;
@@ -206,16 +225,22 @@ es.onmessage = (ev) => {
   }
 };
 
-// Controls
+// ── Controls ──────────────────────────────────────────────────────────────────
 async function startSystem() {
   document.getElementById('btn-start').disabled = true;
   document.getElementById('error-banner').style.display = 'none';
+  document.getElementById('device-select').disabled = true;
+  document.querySelectorAll('.lang-pill').forEach(b => b.classList.add('disabled'));
+
   const r = await fetch('/start', {method:'POST'});
   const j = await r.json();
   if (j.ok) {
+    isRunning = true;
     document.getElementById('btn-stop').disabled = false;
   } else {
     document.getElementById('btn-start').disabled = false;
+    document.getElementById('device-select').disabled = false;
+    document.querySelectorAll('.lang-pill').forEach(b => b.classList.remove('disabled'));
     const b = document.getElementById('error-banner');
     b.textContent = '⚠ ' + j.msg;
     b.style.display = 'block';
@@ -224,10 +249,39 @@ async function startSystem() {
 
 async function stopSystem() {
   await fetch('/stop', {method:'POST'});
+  isRunning = false;
   document.getElementById('btn-start').disabled = false;
   document.getElementById('btn-stop').disabled = true;
+  document.getElementById('device-select').disabled = false;
+  document.querySelectorAll('.lang-pill').forEach(b => b.classList.remove('disabled'));
 }
 
+// ── Devices ───────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  const r   = await fetch('/api/devices');
+  const j   = await r.json();
+  const sel = document.getElementById('device-select');
+  sel.innerHTML = '<option value="">🎙 System Default</option>';
+  (j.devices || []).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.index;
+    opt.textContent = d.name;
+    if (d.selected) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+async function selectDevice(sel) {
+  if (isRunning) return;
+  const index = sel.value === '' ? null : parseInt(sel.value);
+  await fetch('/api/devices', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({index})
+  });
+}
+
+loadLanguages();
+loadDevices();
 </script>
 </body>
 </html>

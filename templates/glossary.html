@@ -13,34 +13,49 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; padding: 2rem; }
+
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
   .header-left { display: flex; align-items: center; gap: 1rem; }
-  .header-right { display: flex; gap: 0.75rem; align-items: center; }
+  .header-right { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
   .logo { width: 42px; height: 42px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
   h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
   h1 span { color: var(--accent); }
-  .back-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: color 0.2s; cursor: pointer; }
+  .back-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: color 0.2s; }
   .back-btn:hover { color: var(--text); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--muted); transition: all 0.2s; }
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tab-count { font-size: 0.65rem; background: rgba(255,255,255,0.2); border-radius: 99px; padding: 0.1rem 0.4rem; margin-left: 0.3rem; }
+
+  /* Add form */
   .add-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; max-width: 860px; }
   .card-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
   .add-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end; }
   .field label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600; }
   input[type="text"] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 0.9rem; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
   input[type="text"]:focus { border-color: var(--accent); }
-  .urdu-input { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; font-size: 1rem; }
+  .rtl-input { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; font-size: 1rem; }
   button { padding: 0.65rem 1.2rem; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s; }
   button:hover { opacity: 0.85; }
-  .btn-add  { background: var(--accent); color: #fff; white-space: nowrap; }
-  .btn-save { background: var(--green); color: #000; padding: 0.4rem 0.75rem; font-size: 0.75rem; }
-  .btn-del  { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 0.4rem 0.65rem; font-size: 0.75rem; }
+  .btn-add { background: var(--accent); color: #fff; white-space: nowrap; }
+  .btn-del { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 0.35rem 0.65rem; font-size: 0.75rem; }
   .btn-play { background: rgba(124,106,247,0.15); border: 1px solid rgba(124,106,247,0.3); color: var(--accent); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
-  .btn-play:hover  { background: rgba(124,106,247,0.3); }
+  .btn-play:hover { background: rgba(124,106,247,0.3); }
   .btn-play.playing { background: var(--accent); color: #fff; }
-  .stats { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.8rem; color: var(--muted); }
+
+  /* Stats */
+  .stats { display: flex; gap: 1.5rem; margin-bottom: 1.25rem; font-size: 0.8rem; color: var(--muted); }
   .stats strong { color: var(--accent); font-size: 1rem; }
+
+  /* Search */
   .search-row { margin-bottom: 1rem; max-width: 860px; }
   .search-row input { width: 100%; padding: 0.65rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem; outline: none; }
   .search-row input:focus { border-color: var(--accent); }
+
+  /* Table */
   .table-wrap { max-width: 860px; }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); }
@@ -49,11 +64,13 @@
   tr.term-row:hover { background: var(--surface2); }
   td { padding: 0.75rem 1rem; vertical-align: middle; }
   .td-en { font-size: 0.9rem; font-weight: 600; }
-  .td-ur { font-family: 'Noto Nastaliq Urdu', serif; font-size: 1rem; color: var(--accent); direction: rtl; }
-  .td-ur-edit { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; font-size: 1rem; background: var(--bg); border: 1px solid var(--accent); border-radius: 6px; padding: 0.3rem 0.6rem; color: var(--text); outline: none; width: 100%; }
+  .td-tr { font-size: 1rem; color: var(--accent); }
+  .td-tr.rtl { direction: rtl; text-align: right; font-family: 'Noto Nastaliq Urdu', serif; }
   .td-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
   .locked-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(124,106,247,0.15); color: var(--accent); border: 1px solid rgba(124,106,247,0.3); padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
   .empty-state { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+
+  /* Toast */
   #toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1.25rem; font-size: 0.85rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; }
   #toast.show { opacity: 1; }
 </style>
@@ -65,52 +82,59 @@
     <div class="logo">📖</div>
     <div>
       <h1>Translation <span>Glossary</span></h1>
-      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Locked terms — Google Translate cannot override these</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Locked terms per language — Google Translate cannot override these</div>
     </div>
   </div>
   <div class="header-right">
     <a href="/" class="back-btn">← Control Panel</a>
     <button class="back-btn" onclick="downloadGlossary()">⬇ Export JSON</button>
-    <label class="back-btn">⬆ Import JSON
+    <label class="back-btn" style="cursor:pointer;">⬆ Import JSON
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importGlossary(event)" />
     </label>
   </div>
 </div>
 
+<!-- Language tabs -->
+<div class="tabs" id="tabs"></div>
+
+<!-- Add new term -->
 <div class="add-card">
-  <div class="card-title">Add New Term</div>
+  <div class="card-title">Add New Term — <span id="add-lang-label">Urdu</span></div>
   <div class="add-row">
     <div class="field">
       <label>English (as spoken)</label>
       <input type="text" id="new-en" placeholder="e.g. Holy Spirit" />
     </div>
     <div class="field">
-      <label>Urdu (locked translation)</label>
-      <input type="text" id="new-ur" class="urdu-input" placeholder="e.g. روح القدس" />
+      <label id="tr-label">Translation (locked)</label>
+      <input type="text" id="new-tr" placeholder="e.g. روح القدس" />
     </div>
-    <button class="btn-add" onclick="addTerm()">+ Add Term</button>
+    <button class="btn-add" onclick="addTerm()">+ Add</button>
   </div>
   <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--muted);">
-    💡 Tip: Add phrases too — "Jesus Christ" will match before "Jesus" automatically.
+    💡 Phrases match before single words — "Jesus Christ" is matched before "Jesus" automatically.
   </div>
 </div>
 
+<!-- Stats -->
 <div class="stats">
   <div><strong id="term-count">0</strong> locked terms</div>
-  <div>Saved automatically to <code style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;">glossary.json</code></div>
+  <div>File: <code style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;" id="file-label">glossary_ur.json</code></div>
 </div>
 
+<!-- Search -->
 <div class="search-row">
   <input type="text" id="search" placeholder="Search terms…" oninput="renderTable()" />
 </div>
 
+<!-- Table -->
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
-        <th style="width:35%">English</th>
-        <th style="width:40%">Urdu (locked)</th>
-        <th style="width:25%;text-align:right">Actions</th>
+        <th style="width:38%">English</th>
+        <th style="width:42%">Translation (locked)</th>
+        <th style="width:20%;text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody id="glossary-body">
@@ -122,113 +146,180 @@
 <div id="toast"></div>
 
 <script>
-let glossary = {};
+// Language config — mirrors app.py LANGUAGES
+const LANGS = {
+  'ur':    {name:'Urdu',       label:'اردو',    rtl:true},
+  'zh-CN': {name:'Chinese',    label:'中文',    rtl:false},
+  'ne':    {name:'Nepali',     label:'नेपाली', rtl:false},
+  'hi':    {name:'Hindi',      label:'हिंदी',  rtl:false},
+  'ar':    {name:'Arabic',     label:'عربي',   rtl:true},
+  'es':    {name:'Spanish',    label:'Español', rtl:false},
+  'fr':    {name:'French',     label:'Français',rtl:false},
+  'tr':    {name:'Turkish',    label:'Türkçe',  rtl:false},
+  'pt':    {name:'Portuguese', label:'Português',rtl:false},
+  'sw':    {name:'Swahili',    label:'Kiswahili',rtl:false},
+  'pa':    {name:'Punjabi',    label:'ਪੰਜਾਬੀ',rtl:false},
+};
 
-async function loadGlossary() {
-  const r  = await fetch('/api/glossary');
-  glossary = await r.json();
+let currentLang = 'ur';
+let glossaries  = {};   // {lang: {en: tr}}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Load all glossaries
+  await Promise.all(Object.keys(LANGS).map(async code => {
+    const r = await fetch('/api/glossary?lang=' + code);
+    glossaries[code] = await r.json();
+  }));
+  renderTabs();
+  switchTab('ur');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function renderTabs() {
+  const container = document.getElementById('tabs');
+  container.innerHTML = '';
+  Object.entries(LANGS).forEach(([code, cfg]) => {
+    const count = Object.keys(glossaries[code] || {}).length;
+    const btn   = document.createElement('button');
+    btn.className = 'tab' + (code === currentLang ? ' active' : '');
+    btn.id = 'tab-' + code;
+    btn.innerHTML = cfg.name + ' · ' + cfg.label +
+      (count > 0 ? '<span class="tab-count">' + count + '</span>' : '');
+    btn.onclick = () => switchTab(code);
+    container.appendChild(btn);
+  });
+}
+
+function switchTab(code) {
+  currentLang = code;
+  const cfg   = LANGS[code];
+
+  // Update active tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('tab-' + code);
+  if (tab) tab.classList.add('active');
+
+  // Update add form
+  document.getElementById('add-lang-label').textContent = cfg.name;
+  document.getElementById('tr-label').textContent = cfg.name + ' (locked)';
+  document.getElementById('new-tr').placeholder = cfg.rtl ? 'e.g. روح القدس' : 'e.g. translation';
+  document.getElementById('new-tr').className = cfg.rtl ? 'rtl-input' : '';
+  document.getElementById('file-label').textContent = 'glossary_' + code + '.json';
+  document.getElementById('search').value = '';
+
   renderTable();
 }
 
+// ── Table ─────────────────────────────────────────────────────────────────────
 function renderTable() {
-  const search = document.getElementById('search').value.toLowerCase();
-  const tbody  = document.getElementById('glossary-body');
-  document.getElementById('term-count').textContent = Object.keys(glossary).length;
+  const search  = document.getElementById('search').value.toLowerCase();
+  const tbody   = document.getElementById('glossary-body');
+  const g       = glossaries[currentLang] || {};
+  const cfg     = LANGS[currentLang];
+  document.getElementById('term-count').textContent = Object.keys(g).length;
 
-  const filtered = Object.entries(glossary)
-    .filter(([en, ur]) => en.toLowerCase().includes(search) || ur.includes(search))
+  const filtered = Object.entries(g)
+    .filter(([en, tr]) => en.toLowerCase().includes(search) || tr.toLowerCase().includes(search))
     .sort((a, b) => a[0].localeCompare(b[0]));
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">No terms found.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">No terms yet. Add one above.</div></td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtered.map(([en, ur]) => {
+  tbody.innerHTML = filtered.map(([en, tr]) => {
     const safeEn = CSS.escape(en);
     const encEn  = encodeURIComponent(en);
-    const safeUr = ur.replace(/"/g, '&quot;');
+    const safeTr = tr.replace(/"/g, '&quot;');
     return (
       '<tr class="term-row">' +
         '<td class="td-en">' + en + ' <span class="locked-badge">locked</span></td>' +
-        '<td class="td-ur" id="urdu-cell-' + safeEn + '">' +
+        '<td class="td-tr' + (cfg.rtl ? ' rtl' : '') + '">' +
           '<div style="display:flex;align-items:center;gap:0.5rem;justify-content:flex-end;">' +
-            '<span>' + ur + '</span>' +
-            '<button class="btn-play" data-urdu="' + safeUr + '" title="Hear pronunciation">🔊</button>' +
-          '</div></td>' +
+            '<span>' + tr + '</span>' +
+            '<button class="btn-play" data-text="' + safeTr + '" data-lang="' + currentLang + '" title="Hear pronunciation">🔊</button>' +
+          '</div>' +
+        '</td>' +
         '<td><div class="td-actions">' +
-          '<button class="btn-del" data-del="' + encEn + '">🗑 Delete</button>' +
-        '</div></td></tr>'
+          '<button class="btn-del" data-del="' + encEn + '">🗑</button>' +
+        '</div></td>' +
+      '</tr>'
     );
   }).join('');
 
   tbody.querySelectorAll('.btn-play').forEach(btn => {
-    btn.onclick = () => playUrdu(btn.dataset.urdu, btn);
+    btn.onclick = () => playTerm(btn.dataset.text, btn.dataset.lang, btn);
   });
   tbody.querySelectorAll('[data-del]').forEach(btn => {
     btn.onclick = () => deleteTerm(decodeURIComponent(btn.dataset.del));
   });
 }
 
+// ── CRUD ──────────────────────────────────────────────────────────────────────
 async function addTerm() {
   const en = document.getElementById('new-en').value.trim();
-  const ur = document.getElementById('new-ur').value.trim();
-  if (!en || !ur) { toast('⚠ Both fields required'); return; }
-  const r = await fetch('/api/glossary', {
+  const tr = document.getElementById('new-tr').value.trim();
+  if (!en || !tr) { toast('⚠ Both fields required'); return; }
+
+  const r = await fetch('/api/glossary?lang=' + currentLang, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({english: en, urdu: ur})
+    body: JSON.stringify({english: en, urdu: tr})
   });
   const j = await r.json();
   if (j.ok) {
-    glossary[en] = ur;
+    if (!glossaries[currentLang]) glossaries[currentLang] = {};
+    glossaries[currentLang][en] = tr;
     document.getElementById('new-en').value = '';
-    document.getElementById('new-ur').value = '';
+    document.getElementById('new-tr').value = '';
+    renderTabs();
     renderTable();
-    toast('✅ "' + en + '" added');
+    toast('✅ "' + en + '" added to ' + LANGS[currentLang].name);
   } else { toast('⚠ ' + j.msg); }
 }
 
 async function deleteTerm(en) {
-  if (!confirm('Remove "' + en + '" from glossary?')) return;
-  const r = await fetch('/api/glossary/' + encodeURIComponent(en), { method: 'DELETE' });
+  if (!confirm('Remove "' + en + '" from ' + LANGS[currentLang].name + ' glossary?')) return;
+  const r = await fetch('/api/glossary/' + encodeURIComponent(en) + '?lang=' + currentLang, {method:'DELETE'});
   const j = await r.json();
-  if (j.ok) { delete glossary[en]; renderTable(); toast('🗑 "' + en + '" removed'); }
+  if (j.ok) {
+    delete glossaries[currentLang][en];
+    renderTabs();
+    renderTable();
+    toast('🗑 "' + en + '" removed');
+  }
 }
 
-async function playUrdu(text, btn) {
+// ── Pronounce ─────────────────────────────────────────────────────────────────
+async function playTerm(text, lang, btn) {
   btn.classList.add('playing');
   btn.textContent = '⏳';
   try {
     const r = await fetch('/api/pronounce', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({urdu: text})
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text, lang})
     });
     if (!r.ok) throw new Error('Server error');
     const blob = await r.blob();
     const url  = URL.createObjectURL(blob);
     const a    = new Audio(url);
-    a.onended = () => {
-      btn.classList.remove('playing');
-      btn.textContent = '🔊';
-      URL.revokeObjectURL(url);
-    };
+    a.onended = () => { btn.classList.remove('playing'); btn.textContent = '🔊'; URL.revokeObjectURL(url); };
     a.play();
   } catch(e) {
-    btn.classList.remove('playing');
-    btn.textContent = '🔊';
+    btn.classList.remove('playing'); btn.textContent = '🔊';
     toast('⚠ Could not play audio');
   }
 }
-window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
+// ── Export / Import ───────────────────────────────────────────────────────────
 function downloadGlossary() {
-  const blob = new Blob([JSON.stringify(glossary, null, 2)], {type: 'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'glossary.json';
+  const g    = glossaries[currentLang] || {};
+  const blob = new Blob([JSON.stringify(g, null, 2)], {type:'application/json'});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'glossary_' + currentLang + '.json';
   a.click();
-  toast('⬇ Exported glossary.json');
+  toast('⬇ Exported glossary_' + currentLang + '.json');
 }
 
 async function importGlossary(event) {
@@ -238,23 +329,29 @@ async function importGlossary(event) {
     const text = await file.text();
     const data = JSON.parse(text);
     if (typeof data !== 'object' || Array.isArray(data)) {
-      toast('⚠ Invalid JSON — must be {"English": "Urdu"} format'); return;
+      toast('⚠ Invalid JSON — must be {"English": "Translation"} format'); return;
     }
-    const r = await fetch('/api/glossary/import', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+    const r = await fetch('/api/glossary/import?lang=' + currentLang, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify(data)
     });
     const j = await r.json();
-    if (j.ok) { await loadGlossary(); toast('✅ Imported ' + j.count + ' terms — ' + j.total + ' total'); }
-    else { toast('⚠ ' + j.msg); }
+    if (j.ok) {
+      glossaries[currentLang] = Object.assign(glossaries[currentLang] || {}, data);
+      renderTabs();
+      renderTable();
+      toast('✅ Imported ' + j.count + ' terms into ' + LANGS[currentLang].name);
+    } else { toast('⚠ ' + j.msg); }
   } catch(e) { toast('⚠ Invalid JSON file'); }
   event.target.value = '';
 }
 
+// ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.activeElement.id === 'new-ur') addTerm();
+  if (e.key === 'Enter' && document.activeElement.id === 'new-tr') addTerm();
 });
 
+// ── Toast ─────────────────────────────────────────────────────────────────────
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -263,7 +360,7 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-loadGlossary();
+init();
 </script>
 </body>
 </html>

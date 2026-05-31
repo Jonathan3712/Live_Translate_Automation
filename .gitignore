@@ -1,0 +1,6 @@
+.env
+__pycache__/
+venv/
+*.pyc
+*.mp3
+glossary.json
