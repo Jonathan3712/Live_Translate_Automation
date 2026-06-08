@@ -1,6 +1,7 @@
 .env
 __pycache__/
 venv/
+.venv/
 *.pyc
 *.mp3
 glossary.json
