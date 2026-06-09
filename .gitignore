@@ -4,3 +4,8 @@ venv/
 *.pyc
 *.mp3
 glossary.json
+__pycache__/
+venv/
+.env
+*.pyc
+glossary.json

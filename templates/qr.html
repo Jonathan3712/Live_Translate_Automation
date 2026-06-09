@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --accent:#7c6af7; --text:#e8e8f0; --muted:#6b6b80; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:2.5rem 2rem; text-align:center; max-width:360px; width:100%; }
+  .qr-img { width:220px; height:220px; border-radius:12px; background:#fff; padding:10px; margin:0 auto 1.5rem; display:block; }
+  h2 { font-size:1.3rem; font-weight:800; margin-bottom:0.4rem; }
+  .url { font-size:0.72rem; color:var(--muted); font-family:monospace; margin-bottom:1.5rem; word-break:break-all; }
+  .instruction { font-size:0.85rem; color:var(--muted); line-height:1.7; margin-bottom:1.5rem; }
+  .instruction strong { color:var(--text); }
+  .btn-row { display:flex; gap:0.75rem; justify-content:center; }
+  .btn { padding:0.6rem 1.2rem; border-radius:8px; font-family:'Syne',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer; border:none; }
+  .btn-print { background:var(--accent); color:#fff; }
+  .btn-back  { background:var(--surface); border:1px solid var(--border); color:var(--muted); text-decoration:none; display:flex; align-items:center; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <img class="qr-img" id="qr-img" src="/api/qr/landing" alt="QR Code" />
+  <h2>Scan to Listen</h2>
+  <div class="url" id="url-text">Loading...</div>
+  <div class="instruction">
+    <strong>Step 1</strong> — Connect to church WiFi<br>
+    <strong>Step 2</strong> — Scan this QR code<br>
+    <strong>Step 3</strong> — Choose your language<br>
+    <strong>Step 4</strong> — Tap "Tap to Listen"
+  </div>
+  <div class="btn-row">
+    <a href="/" class="btn btn-back">← Back</a>
+    <button class="btn btn-print" onclick="printQR()">🖨 Print</button>
+  </div>
+</div>
+
+<script>
+// Show the URL
+const host = window.location.host;
+document.getElementById('url-text').textContent = window.location.protocol + '//' + host + '/listen';
+
+function printQR() {
+  const host = window.location.host;
+  const url  = window.location.protocol + '//' + host + '/listen';
+  const win  = window.open('', '_blank');
+  win.document.write(
+    '<html><body style="text-align:center;font-family:sans-serif;padding:3rem;">' +
+    '<h2 style="margin-bottom:0.5rem;">Live Translation</h2>' +
+    '<p style="color:#666;margin-bottom:1.5rem;">Scan to listen in your language</p>' +
+    '<img src="/api/qr/landing" style="width:280px;height:280px;" />' +
+    '<p style="font-size:0.8rem;color:#999;margin-top:1rem;">' + url + '</p>' +
+    '<p style="font-size:0.85rem;margin-top:0.5rem;color:#555;">Connect to church WiFi first</p>' +
+    '</body></html>'
+  );
+  win.document.close();
+  win.print();
+}
+</script>
+</body>
+</html>

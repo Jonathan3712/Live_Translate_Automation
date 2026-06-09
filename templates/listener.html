@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>{{ lang_name }} Translation</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a;
+    --accent:#7c6af7; --text:#ffffff; --muted:#6b6b80;
+    --green:#22c55e; --yellow:#facc15; --red:#ef4444;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* Top bar */
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .brand { display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; font-weight:600; }
+  .lang-badge { background:var(--accent); color:#fff; padding:0.2rem 0.6rem; border-radius:99px; font-size:0.75rem; font-weight:700; }
+  .topbar-right { display:flex; align-items:center; gap:0.75rem; }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+  .status-dot.live { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.4s infinite; }
+  .status-dot.error { background:var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .back-link { font-size:0.75rem; color:var(--muted); text-decoration:none; }
+  .back-link:hover { color:var(--text); }
+
+  /* Unlock screen */
+  #unlock-screen { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem; padding:2rem; text-align:center; }
+  .unlock-icon { font-size:4rem; }
+  .unlock-title { font-size:1.4rem; font-weight:700; }
+  .unlock-sub { font-size:0.9rem; color:var(--muted); line-height:1.7; max-width:280px; }
+  .unlock-btn { background:var(--accent); color:#fff; border:none; border-radius:14px; padding:1rem 2.5rem; font-size:1.1rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; width:100%; max-width:300px; transition:opacity 0.2s; }
+  .unlock-btn:active { opacity:0.8; }
+
+  /* Listener screen */
+  #listener-screen { display:none; flex:1; flex-direction:column; }
+  .current-box { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem 1.5rem; text-align:center; }
+  .current-lang-label { font-size:0.68rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
+  .current-translation { font-size:clamp(1.6rem,5.5vw,3.2rem); line-height:2; color:var(--yellow); min-height:4rem; transition:opacity 0.25s; }
+  .current-translation.rtl { font-family:'Noto Nastaliq Urdu',serif; direction:rtl; }
+  .current-english { font-size:clamp(0.8rem,2.5vw,1rem); color:var(--muted); margin-top:1.25rem; line-height:1.5; max-width:460px; }
+  .waiting { color:var(--muted); font-size:0.95rem; font-family:'Inter',sans-serif; }
+
+  /* Bottom bar */
+  .bottom-bar { padding:0.85rem 1.25rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .status-text { font-size:0.78rem; color:var(--muted); }
+  .segment-count { font-size:0.72rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    🎙 Live Translation
+    <span class="lang-badge">{{ lang_name }}</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/listen" class="back-link">← Languages</a>
+    <div class="status-dot" id="status-dot"></div>
+  </div>
+</div>
+
+<!-- Unlock screen -->
+<div id="unlock-screen">
+  <div class="unlock-icon">🔊</div>
+  <div class="unlock-title">{{ lang_name }} Translation</div>
+  <div class="unlock-sub">
+    Tap the button below to start listening.<br><br>
+    Make sure your <strong>volume is turned up</strong> and you are connected to <strong>church WiFi</strong>.
+  </div>
+  <button class="unlock-btn" onclick="unlockAndStart()">Tap to Listen</button>
+</div>
+
+<!-- Listener screen -->
+<div id="listener-screen">
+  <div class="current-box">
+    <div class="current-lang-label">{{ lang_name|upper }} TRANSLATION</div>
+    <div class="current-translation {% if lang_code in ['ur','ar'] %}rtl{% endif %}" id="current-translation">
+      <span class="waiting">Waiting for speaker...</span>
+    </div>
+    <div class="current-english" id="current-english"></div>
+  </div>
+  <div class="bottom-bar">
+    <div class="status-text" id="status-text">Connecting...</div>
+    <div class="segment-count" id="segment-count"></div>
+  </div>
+</div>
+
+<script>
+var LANG_CODE     = "{{ lang_code }}";
+var LANG_PATH     = window.location.pathname.replace("/", "");
+var audioCtx      = null;
+var audioUnlocked = false;
+var audioQueue    = [];
+var audioPlaying  = false;
+var segmentCount  = 0;
+
+function unlockAndStart() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  var buf  = audioCtx.createBuffer(1, 1, 22050);
+  var src  = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start(0);
+  audioUnlocked = true;
+  document.getElementById("unlock-screen").style.display   = "none";
+  document.getElementById("listener-screen").style.display = "flex";
+  connectSSE();
+}
+
+function connectSSE() {
+  var es = new EventSource("/stream?lang=" + LANG_PATH);
+
+  es.onmessage = function(ev) {
+    var d = JSON.parse(ev.data);
+    if (d.type === "ping") return;
+
+    if (d.type === "init") {
+      document.getElementById("status-text").textContent = "Connected - listening...";
+      document.getElementById("status-dot").className    = "status-dot live";
+    }
+
+    if (d.type === "status") {
+      var labels = {
+        listening:    "Listening...",
+        transcribing: "Transcribing...",
+        translating:  "Translating...",
+        idle:         "Waiting for operator to start..."
+      };
+      document.getElementById("status-text").textContent = labels[d.status] || d.status;
+    }
+
+    if (d.type === "transcript" && d.lang === LANG_CODE) {
+      showTranslation(d);
+      segmentCount++;
+      document.getElementById("segment-count").textContent = segmentCount + " segments heard";
+    }
+
+    if (d.type === "audio" && d.lang === LANG_CODE) {
+      enqueueAudio(d.data);
+    }
+
+    if (d.type === "error") {
+      document.getElementById("status-text").textContent = "Error: " + d.message;
+      document.getElementById("status-dot").className    = "status-dot error";
+    }
+  };
+
+  es.onerror = function() {
+    document.getElementById("status-text").textContent = "Reconnecting...";
+    document.getElementById("status-dot").className    = "status-dot";
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+function showTranslation(entry) {
+  var trEl = document.getElementById("current-translation");
+  var enEl = document.getElementById("current-english");
+  trEl.style.opacity = "0";
+  setTimeout(function() {
+    trEl.innerHTML    = entry.translated || "";
+    enEl.textContent  = entry.english    || "";
+    trEl.style.opacity = "1";
+  }, 200);
+}
+
+function enqueueAudio(base64mp3) {
+  audioQueue.push(base64mp3);
+  if (!audioPlaying) playNext();
+}
+
+function playNext() {
+  if (!audioUnlocked || audioQueue.length === 0) {
+    audioPlaying = false;
+    return;
+  }
+  audioPlaying  = true;
+  var b64       = audioQueue.shift();
+  var binary    = atob(b64);
+  var bytes     = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  audioCtx.decodeAudioData(bytes.buffer,
+    function(audioBuf) {
+      var src    = audioCtx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(audioCtx.destination);
+      src.onended = function() { audioPlaying = false; playNext(); };
+      src.start(0);
+    },
+    function() { audioPlaying = false; playNext(); }
+  );
+}
+</script>
+</body>
+</html>
