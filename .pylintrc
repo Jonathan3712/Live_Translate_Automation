@@ -1,0 +1,28 @@
+[MAIN]
+py-version = 3.10
+
+[MESSAGES CONTROL]
+disable =
+    missing-module-docstring,
+    missing-function-docstring,
+    wrong-import-position,
+    wrong-import-order,
+    import-outside-toplevel,
+    redefined-outer-name,
+    unused-import,
+    too-many-statements,
+    broad-exception-caught,
+    use-dict-literal,
+    consider-using-with,
+    multiple-statements,
+    multiple-imports,
+    reimported,
+
+[TYPECHECK]
+generated-members=setnchannels,setsampwidth,setframerate,writeframes
+
+[BASIC]
+good-names=SILENCE_CHUNKS,MAX_SECONDS,MIN_SPEECH_FRAMES,pa,wf,qr,buf,tmp,proc,g,ph
+
+[FORMAT]
+max-line-length=100
