@@ -6,6 +6,7 @@ disable =
     missing-module-docstring,
     missing-function-docstring,
     wrong-import-position,
+    wrong-import-order,
     import-outside-toplevel,
     redefined-outer-name,
     unused-import,
