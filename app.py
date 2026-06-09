@@ -80,7 +80,10 @@ NOISE_PHRASES = [
 ]
 HALLUCINATION_EXACT = {
     "thank you. thank you.", "thanks. thanks.",
-    "thank you, thank you.", "goodbye.", "goodbye", "bye.", "bye",
+    "thank you, thank you.", "thank you! thank you!",
+    "thank you. thank you. thank you.",
+    "goodbye.", "goodbye", "bye.", "bye",
+    "thank you", "thanks", "thank you.",
 }
 
 LANGUAGES = {
@@ -313,7 +316,8 @@ def transcription_thread():
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            if english.strip().lower().rstrip(".!?,") in HALLUCINATION_EXACT:
+            english_norm = english.strip().lower()
+            if english_norm in HALLUCINATION_EXACT or english_norm.rstrip(".!?, ") in HALLUCINATION_EXACT:
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
@@ -321,12 +325,32 @@ def transcription_thread():
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            if english.strip().lower() == state["last_english"].strip().lower():
+            # Block URLs and website addresses Whisper hallucinates
+            import re as _re
+            if _re.search(r"https?://|www\.|\.(com|org|net|uk|co)", english.lower()):
+                print("URL hallucination filtered: " + english[:50])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
+            curr = english.strip().lower()
+            last = state["last_english"].strip().lower()
+            # Block exact duplicates and near-duplicates (one word different)
+            if curr == last:
+                print("Duplicate skipped: " + english[:40])
+                state["status"] = "listening"
+                push_all("status", {"status": "listening"})
+                continue
+            # Block if too similar (Whisper repeating with minor variation)
+            if len(curr) > 10 and len(last) > 10:
+                overlap = len(set(curr.split()) & set(last.split()))
+                total   = max(len(set(curr.split())), len(set(last.split())))
+                if total > 0 and overlap / total > 0.85:
+                    print("Near-duplicate skipped: " + english[:40])
+                    state["status"] = "listening"
+                    push_all("status", {"status": "listening"})
+                    continue
             state["last_english"]   = english
-            state["cooldown_until"] = time.time() + 2.0
+            state["cooldown_until"] = time.time() + 3.0
             state["status"] = "translating"
             push_all("status", {"status": "translating"})
             print("Transcribed: " + english[:60])
@@ -357,12 +381,17 @@ def language_pipeline(lang_code):
             print("[" + cfg["name"] + "] " + translated[:50])
             mp3_bytes = generate_audio_bytes(translated, cfg["gtts"])
             b64_audio = base64.b64encode(mp3_bytes).decode("utf-8")
-            push_to_lang(lang_code, "transcript", {
+            entry = {
                 "english":    english,
                 "translated": translated,
+                "lang":       lang_code,
+                "lang_name":  cfg["name"],
                 "ts":         time.strftime("%H:%M:%S"),
-            })
+            }
+            push_to_lang(lang_code, "transcript", entry)
             push_to_lang(lang_code, "audio", {"data": b64_audio})
+            # Also push to admin panel (lang=None clients)
+            push_all("transcript", entry)
         except Exception as e:
             print("Pipeline error [" + lang_code + "]: " + str(e))
     print("Language pipeline stopped: " + cfg["name"])

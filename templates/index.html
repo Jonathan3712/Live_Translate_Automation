@@ -76,6 +76,12 @@
   .entry-tr   { font-size:0.88rem; line-height:1.6; color:var(--accent); padding:0.15rem 0; }
   .entry-lang-badge { font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-right:0.4rem; }
 
+  /* Feed filter tabs */
+  .feed-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
+  .feed-tab { padding:0.3rem 0.85rem; border-radius:99px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--muted); transition:all 0.2s; }
+  .feed-tab:hover { border-color:var(--accent); color:var(--text); }
+  .feed-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
   /* Error */
   #error-banner { display:none; background:#3a1010; border:1px solid var(--red); border-radius:10px; padding:0.85rem 1rem; font-size:0.85rem; color:#fca5a5; margin-bottom:1rem; max-width:960px; }
 </style>
@@ -152,6 +158,11 @@
   <!-- Live feed -->
   <div class="card span2">
     <div class="card-title">Live Feed — last 20 segments</div>
+    <div class="feed-tabs" id="feed-tabs">
+      <button class="feed-tab active" onclick="setFeedFilter('all', this)">All Languages</button>
+      <button class="feed-tab" onclick="setFeedFilter('ur', this)">Urdu only</button>
+      <button class="feed-tab" onclick="setFeedFilter('ne', this)">Nepali only</button>
+    </div>
     <div id="feed">
       <div class="placeholder" style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">
         Hit <strong>Start</strong> to begin listening…
@@ -163,6 +174,22 @@
 
 <script>
 var isRunning     = false;
+var feedFilter    = "all";
+
+function setFeedFilter(lang, btn) {
+  feedFilter = lang;
+  document.querySelectorAll(".feed-tab").forEach(function(b) { b.classList.remove("active"); });
+  btn.classList.add("active");
+  // Show/hide individual translation rows inside each entry
+  document.querySelectorAll(".entry-tr").forEach(function(row) {
+    var rowLang = row.dataset.lang || "";
+    if (lang === "all" || rowLang === lang) {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  });
+}
 var activeLangs   = {};
 var segmentCount  = 0;
 var langSegments  = {};
@@ -215,6 +242,27 @@ function renderLangPills() {
 // Feed entries — group by english sentence
 var feedEntries = {};
 
+function showEnglishPending(d) {
+  var feed = document.getElementById("feed");
+  if (feed.querySelector(".placeholder")) feed.innerHTML = "";
+  var key = d.ts + "_" + (d.english || "").substring(0, 20);
+  if (!feedEntries[key]) {
+    var div = document.createElement("div");
+    div.className = "entry";
+    div.id = "entry_" + Object.keys(feedEntries).length;
+    div.dataset.lang = d.lang || "all";
+    div.innerHTML =
+      '<div class="entry-ts">' + (d.ts || "") + "</div>" +
+      '<div class="entry-en">' + (d.english || "") + "</div>" +
+      '<div class="entry-langs" id="elangs_' + div.id + '"></div>';
+    feed.prepend(div);
+    feedEntries[key] = div.id;
+    while (feed.children.length > 20) feed.removeChild(feed.lastChild);
+    segmentCount++;
+    document.getElementById("stat-segments").textContent = segmentCount;
+  }
+}
+
 function addTranscript(d) {
   var feed = document.getElementById("feed");
   if (feed.querySelector(".placeholder")) feed.innerHTML = "";
@@ -238,12 +286,17 @@ function addTranscript(d) {
   // Add translation to entry
   var entryEl = document.getElementById(feedEntries[key]);
   if (entryEl) {
-    var langsEl = entryEl.querySelector(".entry-langs");
+    var langsEl = entryEl.querySelector(".entry-langs") || document.getElementById("elangs_" + feedEntries[key]);
     if (langsEl) {
       var langName = activeLangs[d.lang] ? activeLangs[d.lang].name : d.lang;
       var tr = document.createElement("div");
       tr.className = "entry-tr";
+      tr.dataset.lang = d.lang || "";
       tr.innerHTML = '<span class="entry-lang-badge">' + langName + "</span>" + (d.translated || "");
+      // Apply current filter immediately
+      if (feedFilter !== "all" && tr.dataset.lang !== feedFilter) {
+        tr.style.display = "none";
+      }
       langsEl.appendChild(tr);
     }
   }
@@ -263,6 +316,7 @@ es.onmessage = function(ev) {
   }
   if (d.type === "status") setStatus(d.status);
   if (d.type === "transcript") addTranscript(d);
+    if (d.type === "english_text") showEnglishPending(d);
   if (d.type === "error") {
     var b = document.getElementById("error-banner");
     b.textContent = "Error: " + d.message;
