@@ -61,13 +61,13 @@ if sys.platform == "win32":
 else:
     PYGAME_AVAILABLE = False
 
-OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-SYSTEM    = platform.system()
+SYSTEM = platform.system()
 AUDIO_DIR = tempfile.gettempdir()
 SAMPLE_RATE = 16000
-CHUNK_SIZE  = 1024
-CHANNELS    = 1
+CHUNK_SIZE = 1024
+CHANNELS = 1
 
 NOISE_PHRASES = [
     "thank you for watching", "thank you for listening",
@@ -86,17 +86,17 @@ HALLUCINATION_EXACT = {
 }
 
 LANGUAGES = {
-    "ur":    {"name": "Urdu",       "gtts": "ur",    "label": "Urdu"},
-    "ne":    {"name": "Nepali",     "gtts": "ne",    "label": "Nepali"},
-    "zh-CN": {"name": "Chinese",    "gtts": "zh-CN", "label": "Chinese"},
-    "hi":    {"name": "Hindi",      "gtts": "hi",    "label": "Hindi"},
-    "ar":    {"name": "Arabic",     "gtts": "ar",    "label": "Arabic"},
-    "es":    {"name": "Spanish",    "gtts": "es",    "label": "Spanish"},
-    "fr":    {"name": "French",     "gtts": "fr",    "label": "French"},
-    "tr":    {"name": "Turkish",    "gtts": "tr",    "label": "Turkish"},
-    "pt":    {"name": "Portuguese", "gtts": "pt",    "label": "Portuguese"},
-    "sw":    {"name": "Swahili",    "gtts": "sw",    "label": "Swahili"},
-    "pa":    {"name": "Punjabi",    "gtts": "pa",    "label": "Punjabi"},
+    "ur": {"name": "Urdu", "gtts": "ur", "label": "Urdu"},
+    "ne": {"name": "Nepali", "gtts": "ne", "label": "Nepali"},
+    "zh-CN": {"name": "Chinese", "gtts": "zh-CN", "label": "Chinese"},
+    "hi": {"name": "Hindi", "gtts": "hi", "label": "Hindi"},
+    "ar": {"name": "Arabic", "gtts": "ar", "label": "Arabic"},
+    "es": {"name": "Spanish", "gtts": "es", "label": "Spanish"},
+    "fr": {"name": "French", "gtts": "fr", "label": "French"},
+    "tr": {"name": "Turkish", "gtts": "tr", "label": "Turkish"},
+    "pt": {"name": "Portuguese", "gtts": "pt", "label": "Portuguese"},
+    "sw": {"name": "Swahili", "gtts": "sw", "label": "Swahili"},
+    "pa": {"name": "Punjabi", "gtts": "pa", "label": "Punjabi"},
 }
 
 # --- Edit this to change which language plays through the speaker ---
@@ -107,22 +107,22 @@ app = Flask(__name__)
 CORS(app)
 
 state = {
-    "running":        False,
+    "running": False,
     "cooldown_until": 0,
-    "last_english":   "",
-    "history":        [],
-    "status":         "idle",
-    "error":          None,
-    "input_device":   None,
-    "speaker_lang":   SPEAKER_LANGUAGE,
+    "last_english": "",
+    "history": [],
+    "status": "idle",
+    "error": None,
+    "input_device": None,
+    "speaker_lang": SPEAKER_LANGUAGE,
 }
 
-audio_queue     = queue.Queue()
-text_queue      = queue.Queue()
-playback_queue  = queue.Queue()
+audio_queue = queue.Queue()
+text_queue = queue.Queue()
+playback_queue = queue.Queue()
 
 sse_clients = {}
-sse_lock    = threading.Lock()
+sse_lock = threading.Lock()
 
 
 def push_all(event_type, data):
@@ -149,7 +149,7 @@ def glossary_file(lang):
 
 
 def load_glossary(lang="ur"):
-    path   = glossary_file(lang)
+    path = glossary_file(lang)
     legacy = os.path.join(GLOSSARY_DIR, "glossary.json")
     if not os.path.exists(path) and lang == "ur" and os.path.exists(legacy):
         with open(legacy, "r", encoding="utf-8") as f:
@@ -210,7 +210,7 @@ def transcribe(wav_bytes):
 
 def generate_audio_bytes(text, gtts_code):
     from gtts import gTTS
-    buf  = io.BytesIO()
+    buf = io.BytesIO()
     slow = gtts_code == "ne"
     gTTS(text=text, lang=gtts_code, slow=slow).write_to_fp(buf)
     buf.seek(0)
@@ -268,10 +268,10 @@ def is_speech(frame, threshold=600):
 
 
 def recording_thread():
-    SILENCE_CHUNKS    = 50
-    MAX_SECONDS       = 15
+    SILENCE_CHUNKS = 50
+    MAX_SECONDS = 15
     MIN_SPEECH_FRAMES = 8
-    pa     = pyaudio.PyAudio()
+    pa = pyaudio.PyAudio()
     kwargs = dict(format=pyaudio.paInt16, channels=CHANNELS,
                   rate=SAMPLE_RATE, input=True, frames_per_buffer=CHUNK_SIZE)
     if state["input_device"] is not None:
@@ -351,13 +351,13 @@ def transcription_thread():
                 continue
             if len(curr) > 10 and len(last) > 10:
                 overlap = len(set(curr.split()) & set(last.split()))
-                total   = max(len(set(curr.split())), len(set(last.split())))
+                total = max(len(set(curr.split())), len(set(last.split())))
                 if total > 0 and overlap / total > 0.85:
                     print("Near-duplicate skipped: " + english[:40])
                     state["status"] = "listening"
                     push_all("status", {"status": "listening"})
                     continue
-            state["last_english"]   = english
+            state["last_english"] = english
             state["cooldown_until"] = time.time() + 3.0
             state["status"] = "translating"
             push_all("status", {"status": "translating"})
@@ -383,17 +383,17 @@ def translation_thread():
         except queue.Empty:
             continue
         try:
-            lang     = state["speaker_lang"]
-            cfg      = LANGUAGES[lang]
+            lang = state["speaker_lang"]
+            cfg = LANGUAGES[lang]
             translated = translate_text(english, lang)
             print("[" + cfg["name"] + "] " + translated[:50])
-            mp3_bytes  = generate_audio_bytes(translated, cfg["gtts"])
+            mp3_bytes = generate_audio_bytes(translated, cfg["gtts"])
             entry = {
-                "english":    english,
+                "english": english,
                 "translated": translated,
-                "lang":       lang,
-                "lang_name":  cfg["name"],
-                "ts":         time.strftime("%H:%M:%S"),
+                "lang": lang,
+                "lang_name": cfg["name"],
+                "ts": time.strftime("%H:%M:%S"),
             }
             push_all("transcript", entry)
             # Queue for sequential playback - no overlapping
@@ -422,10 +422,10 @@ def stream():
 
     def generate():
         init = {
-            "type":   "init",
+            "type": "init",
             "status": state["status"],
-            "lang":   state["speaker_lang"],
-            "langs":  LANGUAGES,
+            "lang": state["speaker_lang"],
+            "langs": LANGUAGES,
         }
         yield "data: " + json.dumps(init) + "\n\n"
         try:
@@ -457,9 +457,9 @@ def start():
         audio_queue.get_nowait()
     while not text_queue.empty():
         text_queue.get_nowait()
-    threading.Thread(target=recording_thread,     daemon=True).start()
+    threading.Thread(target=recording_thread, daemon=True).start()
     threading.Thread(target=transcription_thread, daemon=True).start()
-    threading.Thread(target=translation_thread,   daemon=True).start()
+    threading.Thread(target=translation_thread, daemon=True).start()
     push_all("status", {"status": "listening"})
     return jsonify({"ok": True, "lang": state["speaker_lang"]})
 
@@ -473,9 +473,9 @@ def stop():
 @app.route("/status")
 def get_status():
     return jsonify({
-        "running":      state["running"],
-        "status":       state["status"],
-        "error":        state["error"],
+        "running": state["running"],
+        "status": state["status"],
+        "error": state["error"],
         "speaker_lang": state["speaker_lang"],
     })
 
@@ -560,8 +560,8 @@ def import_glossary():
 
 @app.route("/api/pronounce", methods=["POST"])
 def pronounce():
-    body      = request.get_json()
-    text      = body.get("text", body.get("urdu", "")).strip()
+    body = request.get_json()
+    text = body.get("text", body.get("urdu", "")).strip()
     lang_code = body.get("lang", "ur")
     if not text:
         return ("No text", 400)
