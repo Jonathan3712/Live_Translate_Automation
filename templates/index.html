@@ -6,83 +6,46 @@
 <title>Live Transcription — Control Panel</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a;
-    --accent:#7c6af7; --accent2:#f97316;
-    --green:#22c55e; --red:#ef4444; --text:#e8e8f0; --muted:#6b6b80;
-  }
+  :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --accent:#7c6af7; --accent2:#f97316; --green:#22c55e; --red:#ef4444; --text:#e8e8f0; --muted:#6b6b80; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; padding:2rem; }
-
-  /* Header */
   .header { display:flex; align-items:center; gap:1rem; margin-bottom:2rem; }
   .logo { width:42px; height:42px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
   h1 { font-size:1.5rem; font-weight:800; letter-spacing:-0.02em; }
   h1 span { color:var(--accent); }
   .subtitle { font-size:0.75rem; color:var(--muted); margin-top:2px; }
   .subtitle a { color:var(--accent); text-decoration:none; margin-right:0.75rem; }
-
-  /* Grid */
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; max-width:960px; }
   .span2 { grid-column:span 2; }
   .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
   .card-title { font-size:0.68rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
-
-  /* Status */
   .status-pill { display:inline-flex; align-items:center; gap:0.5rem; background:var(--bg); border:1px solid var(--border); border-radius:99px; padding:0.4rem 1rem; font-family:'JetBrains Mono',monospace; font-size:0.8rem; }
   .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:background 0.3s; }
   .dot.active { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.4s infinite; }
   .dot.busy   { background:var(--accent2); box-shadow:0 0 8px var(--accent2); }
   .dot.error  { background:var(--red); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  /* Buttons */
   .btn-row { display:flex; gap:0.75rem; margin-top:1.25rem; }
   .btn { flex:1; padding:0.75rem; border:none; border-radius:10px; font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; cursor:pointer; transition:opacity 0.2s,transform 0.1s; }
   .btn:active { transform:scale(0.97); }
   .btn:disabled { opacity:0.35; cursor:not-allowed; }
   .btn-start { background:var(--green); color:#000; }
   .btn-stop  { background:var(--red);   color:#fff; }
-
-  /* Device selector */
   select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:0.6rem 0.9rem; color:var(--text); font-family:'Syne',sans-serif; font-size:0.85rem; outline:none; cursor:pointer; }
   select:focus { border-color:var(--accent); }
   select:disabled { opacity:0.4; }
-
-  /* Active languages display */
   .lang-pills { display:flex; flex-wrap:wrap; gap:0.5rem; }
-  .lang-pill-active {
-    display:inline-flex; align-items:center; gap:0.4rem;
-    padding:0.35rem 0.85rem; border-radius:99px;
-    background:rgba(124,106,247,0.12); border:1px solid rgba(124,106,247,0.3);
-    font-size:0.8rem; font-weight:600; color:var(--accent);
-  }
-  .lang-pill-active .dot-sm { width:6px; height:6px; border-radius:50%; background:var(--green); }
-  .lang-pill-active.playing .dot-sm { animation:pulse 0.8s infinite; }
-
-  /* Stats row */
-  .stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; }
-  .stat-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0.85rem 1rem; text-align:center; }
-  .stat-value { font-size:1.4rem; font-weight:800; color:var(--accent); font-family:'JetBrains Mono',monospace; }
-  .stat-label { font-size:0.68rem; color:var(--muted); margin-top:0.2rem; letter-spacing:0.05em; }
-
-  /* Live feed */
-  #feed { max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:0.65rem; }
+  .lang-pill { padding:0.4rem 0.9rem; border-radius:99px; font-size:0.82rem; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--muted); transition:all 0.2s; }
+  .lang-pill:hover { border-color:var(--accent); color:var(--text); }
+  .lang-pill.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lang-pill.disabled { opacity:0.4; cursor:not-allowed; pointer-events:none; }
+  #feed { max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:0.65rem; }
   .entry { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0.8rem 1rem; animation:fadeIn 0.3s ease; }
   @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
-  .entry-ts   { font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--muted); margin-bottom:0.3rem; }
-  .entry-en   { font-size:0.88rem; line-height:1.5; margin-bottom:0.4rem; }
-  .entry-langs { display:flex; flex-direction:column; gap:0.25rem; }
-  .entry-tr   { font-size:0.88rem; line-height:1.6; color:var(--accent); padding:0.15rem 0; }
-  .entry-lang-badge { font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-right:0.4rem; }
-
-  /* Feed filter tabs */
-  .feed-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
-  .feed-tab { padding:0.3rem 0.85rem; border-radius:99px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--muted); transition:all 0.2s; }
-  .feed-tab:hover { border-color:var(--accent); color:var(--text); }
-  .feed-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-
-  /* Error */
+  .entry-ts   { font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--muted); margin-bottom:0.25rem; }
+  .entry-en   { font-size:0.88rem; line-height:1.5; margin-bottom:0.35rem; }
+  .entry-tr   { font-size:0.95rem; color:var(--accent); line-height:1.8; }
+  .entry-badge { font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:0.2rem; }
   #error-banner { display:none; background:#3a1010; border:1px solid var(--red); border-radius:10px; padding:0.85rem 1rem; font-size:0.85rem; color:#fca5a5; margin-bottom:1rem; max-width:960px; }
 </style>
 </head>
@@ -94,8 +57,6 @@
     <h1>Live <span>Transcription</span></h1>
     <div class="subtitle">
       <a href="/glossary">📖 Glossary</a>
-      <a href="/qr">📱 QR Code</a>
-      <a href="/listen" target="_blank">🌐 Listener Page</a>
     </div>
   </div>
 </div>
@@ -125,47 +86,21 @@
     </select>
   </div>
 
-  <!-- Active languages -->
+  <!-- Language selector -->
   <div class="card span2">
-    <div class="card-title">Active Languages — translating simultaneously</div>
-    <div class="lang-pills" id="lang-pills">
-      <span style="color:var(--muted);font-size:0.85rem;">Loading...</span>
-    </div>
-    <div style="margin-top:0.85rem;font-size:0.75rem;color:var(--muted);">
-      To change active languages edit <code style="font-family:'JetBrains Mono',monospace;">ACTIVE_LANGUAGES</code> in app.py and restart.
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="card span2">
-    <div class="card-title">Session Stats</div>
-    <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-value" id="stat-segments">0</div>
-        <div class="stat-label">Segments</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-langs">0</div>
-        <div class="stat-label">Languages</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-listeners">0</div>
-        <div class="stat-label">Listeners</div>
-      </div>
+    <div class="card-title">🔊 Output Language — spoken through speaker</div>
+    <div class="lang-pills" id="lang-pills"></div>
+    <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--muted);" id="lang-desc">
+      Select a language before hitting Start
     </div>
   </div>
 
   <!-- Live feed -->
   <div class="card span2">
     <div class="card-title">Live Feed — last 20 segments</div>
-    <div class="feed-tabs" id="feed-tabs">
-      <button class="feed-tab active" onclick="setFeedFilter('all', this)">All Languages</button>
-      <button class="feed-tab" onclick="setFeedFilter('ur', this)">Urdu only</button>
-      <button class="feed-tab" onclick="setFeedFilter('ne', this)">Nepali only</button>
-    </div>
     <div id="feed">
       <div class="placeholder" style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">
-        Hit <strong>Start</strong> to begin listening…
+        Select a language then hit <strong>Start</strong> to begin…
       </div>
     </div>
   </div>
@@ -173,26 +108,9 @@
 </div>
 
 <script>
-var isRunning     = false;
-var feedFilter    = "all";
-
-function setFeedFilter(lang, btn) {
-  feedFilter = lang;
-  document.querySelectorAll(".feed-tab").forEach(function(b) { b.classList.remove("active"); });
-  btn.classList.add("active");
-  // Show/hide individual translation rows inside each entry
-  document.querySelectorAll(".entry-tr").forEach(function(row) {
-    var rowLang = row.dataset.lang || "";
-    if (lang === "all" || rowLang === lang) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  });
-}
-var activeLangs   = {};
-var segmentCount  = 0;
-var langSegments  = {};
+var isRunning   = false;
+var currentLang = "ur";
+var allLangs    = {};
 
 var statusMap = {
   idle:         {label:"Idle",           cls:""},
@@ -208,115 +126,79 @@ function setStatus(s) {
   document.getElementById("dot").className = "dot " + m.cls;
 }
 
-// Load active languages from server
-async function loadActiveLangs() {
-  try {
-    var r    = await fetch("/api/languages");
-    var all  = await r.json();
-    var stat = await fetch("/status");
-    var s    = await stat.json();
-    var active = s.active || ["ur","ne"];
-    activeLangs = {};
-    active.forEach(function(code) {
-      if (all[code]) activeLangs[code] = all[code];
-    });
-    renderLangPills();
-    document.getElementById("stat-langs").textContent = active.length;
-  } catch(e) {}
-}
-
-function renderLangPills() {
-  var container = document.getElementById("lang-pills");
-  container.innerHTML = "";
-  Object.entries(activeLangs).forEach(function(entry) {
+async function loadLanguages() {
+  var r = await fetch("/api/languages");
+  allLangs = await r.json();
+  var pills = document.getElementById("lang-pills");
+  pills.innerHTML = "";
+  Object.entries(allLangs).forEach(function(entry) {
     var code = entry[0];
     var cfg  = entry[1];
-    var pill = document.createElement("div");
-    pill.className = "lang-pill-active";
-    pill.id = "pill-" + code;
-    pill.innerHTML = '<div class="dot-sm"></div>' + cfg.name + " " + cfg.label;
-    container.appendChild(pill);
+    var btn  = document.createElement("button");
+    btn.className = "lang-pill" + (code === currentLang ? " active" : "");
+    btn.textContent = cfg.name + " · " + cfg.label;
+    btn.dataset.code = code;
+    btn.onclick = function() { selectLang(code, btn); };
+    pills.appendChild(btn);
   });
+  updateLangDesc();
 }
 
-// Feed entries — group by english sentence
-var feedEntries = {};
+async function selectLang(code, btn) {
+  if (isRunning) return;
+  var r = await fetch("/api/speaker-lang", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({lang: code})
+  });
+  var j = await r.json();
+  if (j.ok) {
+    currentLang = code;
+    document.querySelectorAll(".lang-pill").forEach(function(b) { b.classList.remove("active"); });
+    btn.classList.add("active");
+    updateLangDesc();
+  }
+}
 
-function showEnglishPending(d) {
+function updateLangDesc() {
+  var cfg = allLangs[currentLang];
+  if (cfg) {
+    document.getElementById("lang-desc").textContent =
+      "Speaking: " + cfg.name + " · " + cfg.label;
+  }
+}
+
+function addEntry(d) {
   var feed = document.getElementById("feed");
   if (feed.querySelector(".placeholder")) feed.innerHTML = "";
-  var key = d.ts + "_" + (d.english || "").substring(0, 20);
-  if (!feedEntries[key]) {
-    var div = document.createElement("div");
-    div.className = "entry";
-    div.id = "entry_" + Object.keys(feedEntries).length;
-    div.dataset.lang = d.lang || "all";
-    div.innerHTML =
-      '<div class="entry-ts">' + (d.ts || "") + "</div>" +
-      '<div class="entry-en">' + (d.english || "") + "</div>" +
-      '<div class="entry-langs" id="elangs_' + div.id + '"></div>';
-    feed.prepend(div);
-    feedEntries[key] = div.id;
-    while (feed.children.length > 20) feed.removeChild(feed.lastChild);
-    segmentCount++;
-    document.getElementById("stat-segments").textContent = segmentCount;
-  }
+  var div = document.createElement("div");
+  div.className = "entry";
+  var langName = d.lang_name || d.lang || "";
+  div.innerHTML =
+    '<div class="entry-ts">' + (d.ts || "") + "</div>" +
+    '<div class="entry-en">' + (d.english || "") + "</div>" +
+    (langName ? '<div class="entry-badge">' + langName + "</div>" : "") +
+    '<div class="entry-tr">' + (d.translated || "") + "</div>";
+  feed.prepend(div);
+  while (feed.children.length > 20) feed.removeChild(feed.lastChild);
 }
 
-function addTranscript(d) {
-  var feed = document.getElementById("feed");
-  if (feed.querySelector(".placeholder")) feed.innerHTML = "";
-
-  var key = d.ts + "_" + (d.english || "").substring(0, 20);
-
-  if (!feedEntries[key]) {
-    // New entry
-    var div = document.createElement("div");
-    div.className = "entry";
-    div.id = "entry-" + key.replace(/[^a-z0-9]/gi, "_");
-    div.innerHTML =
-      '<div class="entry-ts">' + (d.ts || "") + "</div>" +
-      '<div class="entry-en">' + (d.english || "") + "</div>" +
-      '<div class="entry-langs" id="langs-' + div.id + '"></div>';
-    feed.prepend(div);
-    feedEntries[key] = div.id;
-    while (feed.children.length > 20) feed.removeChild(feed.lastChild);
-  }
-
-  // Add translation to entry
-  var entryEl = document.getElementById(feedEntries[key]);
-  if (entryEl) {
-    var langsEl = entryEl.querySelector(".entry-langs") || document.getElementById("elangs_" + feedEntries[key]);
-    if (langsEl) {
-      var langName = activeLangs[d.lang] ? activeLangs[d.lang].name : d.lang;
-      var tr = document.createElement("div");
-      tr.className = "entry-tr";
-      tr.dataset.lang = d.lang || "";
-      tr.innerHTML = '<span class="entry-lang-badge">' + langName + "</span>" + (d.translated || "");
-      // Apply current filter immediately
-      if (feedFilter !== "all" && tr.dataset.lang !== feedFilter) {
-        tr.style.display = "none";
-      }
-      langsEl.appendChild(tr);
-    }
-  }
-
-  segmentCount++;
-  document.getElementById("stat-segments").textContent = segmentCount;
-}
-
-// SSE
 var es = new EventSource("/stream");
 es.onmessage = function(ev) {
   var d = JSON.parse(ev.data);
   if (d.type === "ping") return;
   if (d.type === "init") {
     setStatus(d.status);
-    loadActiveLangs();
+    currentLang = d.lang || "ur";
   }
   if (d.type === "status") setStatus(d.status);
-  if (d.type === "transcript") addTranscript(d);
-    if (d.type === "english_text") showEnglishPending(d);
+  if (d.type === "transcript") addEntry(d);
+  if (d.type === "lang_changed") {
+    currentLang = d.lang;
+    updateLangDesc();
+    document.querySelectorAll(".lang-pill").forEach(function(b) {
+      b.classList.toggle("active", b.dataset.code === d.lang);
+    });
+  }
   if (d.type === "error") {
     var b = document.getElementById("error-banner");
     b.textContent = "Error: " + d.message;
@@ -325,23 +207,20 @@ es.onmessage = function(ev) {
   }
 };
 
-// Controls
 async function startSystem() {
-  document.getElementById("btn-start").disabled  = true;
+  document.getElementById("btn-start").disabled = true;
   document.getElementById("device-select").disabled = true;
   document.getElementById("error-banner").style.display = "none";
+  document.querySelectorAll(".lang-pill").forEach(function(b) { b.classList.add("disabled"); });
   var r = await fetch("/start", {method:"POST"});
   var j = await r.json();
   if (j.ok) {
     isRunning = true;
     document.getElementById("btn-stop").disabled = false;
-    segmentCount = 0;
-    feedEntries  = {};
-    document.getElementById("stat-segments").textContent = "0";
-    document.getElementById("feed").innerHTML = '<div class="placeholder" style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">Listening...</div>';
   } else {
-    document.getElementById("btn-start").disabled   = false;
+    document.getElementById("btn-start").disabled = false;
     document.getElementById("device-select").disabled = false;
+    document.querySelectorAll(".lang-pill").forEach(function(b) { b.classList.remove("disabled"); });
     var b = document.getElementById("error-banner");
     b.textContent = "Error: " + j.msg;
     b.style.display = "block";
@@ -351,12 +230,12 @@ async function startSystem() {
 async function stopSystem() {
   await fetch("/stop", {method:"POST"});
   isRunning = false;
-  document.getElementById("btn-start").disabled   = false;
-  document.getElementById("btn-stop").disabled    = true;
+  document.getElementById("btn-start").disabled = false;
+  document.getElementById("btn-stop").disabled  = true;
   document.getElementById("device-select").disabled = false;
+  document.querySelectorAll(".lang-pill").forEach(function(b) { b.classList.remove("disabled"); });
 }
 
-// Devices
 async function loadDevices() {
   var r   = await fetch("/api/devices");
   var j   = await r.json();
@@ -375,13 +254,13 @@ async function selectDevice(sel) {
   if (isRunning) return;
   var index = sel.value === "" ? null : parseInt(sel.value);
   await fetch("/api/devices", {
-    method:"POST", headers:{"Content-Type":"application/json"},
+    method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({index: index})
   });
 }
 
+loadLanguages();
 loadDevices();
-loadActiveLangs();
 </script>
 </body>
 </html>
