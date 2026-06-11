@@ -5,7 +5,7 @@ Cross-platform: Mac (afplay) | Windows (pygame) | Linux (mpg123)
 Audio delivered to phones via SSE - no local speaker required
 """
 from flask_cors import CORS
-from flask import Flask, render_template, Response, jsonify, request
+from flask import Flask, render_template, Response, jsonify, request, send_file
 import os
 import io
 import re
@@ -51,10 +51,9 @@ except ImportError:
     GTTS_AVAILABLE = False
     print("gTTS not installed. Run: pip install gTTS")
 
-# Windows only - pygame for in-memory audio playback
 if sys.platform == "win32":
     try:
-        import pygame
+        import pygame  # pylint: disable=import-error
         PYGAME_AVAILABLE = True
     except ImportError:
         PYGAME_AVAILABLE = False
@@ -62,13 +61,13 @@ if sys.platform == "win32":
 else:
     PYGAME_AVAILABLE = False
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-SYSTEM = platform.system()
+SYSTEM    = platform.system()
 AUDIO_DIR = tempfile.gettempdir()
 SAMPLE_RATE = 16000
-CHUNK_SIZE = 1024
-CHANNELS = 1
+CHUNK_SIZE  = 1024
+CHANNELS    = 1
 
 NOISE_PHRASES = [
     "thank you for watching", "thank you for listening",
@@ -87,17 +86,17 @@ HALLUCINATION_EXACT = {
 }
 
 LANGUAGES = {
-    "ur": {"name": "Urdu", "gtts": "ur", "label": "Urdu", "path": "urdu"},
-    "ne": {"name": "Nepali", "gtts": "ne", "label": "Nepali", "path": "nepali"},
-    "zh-CN": {"name": "Chinese", "gtts": "zh-CN", "label": "Chinese", "path": "chinese"},
-    "hi": {"name": "Hindi", "gtts": "hi", "label": "Hindi", "path": "hindi"},
-    "ar": {"name": "Arabic", "gtts": "ar", "label": "Arabic", "path": "arabic"},
-    "es": {"name": "Spanish", "gtts": "es", "label": "Spanish", "path": "spanish"},
-    "fr": {"name": "French", "gtts": "fr", "label": "French", "path": "french"},
-    "tr": {"name": "Turkish", "gtts": "tr", "label": "Turkish", "path": "turkish"},
-    "pt": {"name": "Portuguese", "gtts": "pt", "label": "Portuguese", "path": "portuguese"},
-    "sw": {"name": "Swahili", "gtts": "sw", "label": "Swahili", "path": "swahili"},
-    "pa": {"name": "Punjabi", "gtts": "pa", "label": "Punjabi", "path": "punjabi"},
+    "ur":    {"name": "Urdu",       "gtts": "ur",    "label": "Urdu",       "path": "urdu"},
+    "ne":    {"name": "Nepali",     "gtts": "ne",    "label": "Nepali",     "path": "nepali"},
+    "zh-CN": {"name": "Chinese",    "gtts": "zh-CN", "label": "Chinese",    "path": "chinese"},
+    "hi":    {"name": "Hindi",      "gtts": "hi",    "label": "Hindi",      "path": "hindi"},
+    "ar":    {"name": "Arabic",     "gtts": "ar",    "label": "Arabic",     "path": "arabic"},
+    "es":    {"name": "Spanish",    "gtts": "es",    "label": "Spanish",    "path": "spanish"},
+    "fr":    {"name": "French",     "gtts": "fr",    "label": "French",     "path": "french"},
+    "tr":    {"name": "Turkish",    "gtts": "tr",    "label": "Turkish",    "path": "turkish"},
+    "pt":    {"name": "Portuguese", "gtts": "pt",    "label": "Portuguese", "path": "portuguese"},
+    "sw":    {"name": "Swahili",    "gtts": "sw",    "label": "Swahili",    "path": "swahili"},
+    "pa":    {"name": "Punjabi",    "gtts": "pa",    "label": "Punjabi",    "path": "punjabi"},
 }
 PATH_TO_CODE = {cfg["path"]: code for code, cfg in LANGUAGES.items()}
 
@@ -109,20 +108,22 @@ app = Flask(__name__)
 CORS(app)
 
 state = {
-    "running": False,
+    "running":        False,
+    "output_mode":    "phones",  # "phones" or "speaker"
+    "speaker_lang":   None,      # must be explicitly set before starting in speaker mode
     "cooldown_until": 0,
-    "last_english": "",
-    "history": [],
-    "status": "idle",
-    "error": None,
-    "input_device": None,
+    "last_english":   "",
+    "history":        [],
+    "status":         "idle",
+    "error":          None,
+    "input_device":   None,
 }
 
-audio_queue = queue.Queue()
+audio_queue      = queue.Queue()
 lang_text_queues = {code: queue.Queue() for code in LANGUAGES}
 
 sse_clients = {}
-sse_lock = threading.Lock()
+sse_lock    = threading.Lock()
 
 
 def push_to_lang(lang_code, event_type, data):
@@ -162,7 +163,7 @@ def glossary_file(lang):
 
 
 def load_glossary(lang="ur"):
-    path = glossary_file(lang)
+    path   = glossary_file(lang)
     legacy = os.path.join(GLOSSARY_DIR, "glossary.json")
     if not os.path.exists(path) and lang == "ur" and os.path.exists(legacy):
         with open(legacy, "r", encoding="utf-8") as f:
@@ -226,7 +227,7 @@ def transcribe(wav_bytes):
 def generate_audio_bytes(text, gtts_code):
     """Generate MP3 in memory - no temp files."""
     from gtts import gTTS
-    buf = io.BytesIO()
+    buf  = io.BytesIO()
     slow = gtts_code == "ne"
     gTTS(text=text, lang=gtts_code, slow=slow).write_to_fp(buf)
     buf.seek(0)
@@ -251,7 +252,6 @@ def play_mp3_bytes(mp3_bytes):
             os.unlink(tmp.name)
         except OSError:
             pass
-
     elif sys.platform == "win32":
         import pygame  # pylint: disable=import-error
         buf = io.BytesIO(mp3_bytes)
@@ -262,7 +262,6 @@ def play_mp3_bytes(mp3_bytes):
             time.sleep(0.05)
         pygame.mixer.music.stop()
         pygame.mixer.quit()
-
     else:
         import subprocess
         proc = subprocess.Popen(["mpg123", "-q", "-"], stdin=subprocess.PIPE)
@@ -276,10 +275,10 @@ def is_speech(frame, threshold=600):
 
 
 def recording_thread():
-    SILENCE_CHUNKS = 50
-    MAX_SECONDS = 15
+    SILENCE_CHUNKS    = 50
+    MAX_SECONDS       = 15
     MIN_SPEECH_FRAMES = 8
-    pa = pyaudio.PyAudio()
+    pa     = pyaudio.PyAudio()
     kwargs = dict(format=pyaudio.paInt16, channels=CHANNELS,
                   rate=SAMPLE_RATE, input=True, frames_per_buffer=CHUNK_SIZE)
     if state["input_device"] is not None:
@@ -345,31 +344,27 @@ def transcription_thread():
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            # Block URLs and website addresses Whisper hallucinates
-            import re as _re
-            if _re.search(r"https?://|www\.|\.(com|org|net|uk|co)", english.lower()):
+            if re.search(r"https?://|www\.|\.( com|org|net|uk|co)", english.lower()):
                 print("URL hallucination filtered: " + english[:50])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
             curr = english.strip().lower()
             last = state["last_english"].strip().lower()
-            # Block exact duplicates and near-duplicates (one word different)
             if curr == last:
                 print("Duplicate skipped: " + english[:40])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            # Block if too similar (Whisper repeating with minor variation)
             if len(curr) > 10 and len(last) > 10:
                 overlap = len(set(curr.split()) & set(last.split()))
-                total = max(len(set(curr.split())), len(set(last.split())))
+                total   = max(len(set(curr.split())), len(set(last.split())))
                 if total > 0 and overlap / total > 0.85:
                     print("Near-duplicate skipped: " + english[:40])
                     state["status"] = "listening"
                     push_all("status", {"status": "listening"})
                     continue
-            state["last_english"] = english
+            state["last_english"]   = english
             state["cooldown_until"] = time.time() + 3.0
             state["status"] = "translating"
             push_all("status", {"status": "translating"})
@@ -403,16 +398,25 @@ def language_pipeline(lang_code):
             mp3_bytes = generate_audio_bytes(translated, cfg["gtts"])
             b64_audio = base64.b64encode(mp3_bytes).decode("utf-8")
             entry = {
-                "english": english,
+                "english":   english,
                 "translated": translated,
-                "lang": lang_code,
+                "lang":      lang_code,
                 "lang_name": cfg["name"],
-                "ts": time.strftime("%H:%M:%S"),
+                "ts":        time.strftime("%H:%M:%S"),
             }
             push_to_lang(lang_code, "transcript", entry)
-            push_to_lang(lang_code, "audio", {"data": b64_audio})
-            # Also push to admin panel (lang=None clients)
             push_all("transcript", entry)
+            if state["output_mode"] == "phones":
+                push_to_lang(lang_code, "audio", {"data": b64_audio})
+            else:
+                if state["speaker_lang"] is not None and lang_code == state["speaker_lang"]:
+                    threading.Thread(
+                        target=play_mp3_bytes,
+                        args=(mp3_bytes,),
+                        daemon=True
+                    ).start()
+                elif state["speaker_lang"] is None:
+                    print("Speaker mode: no language selected - audio skipped")
         except Exception as e:
             print("Pipeline error [" + lang_code + "]: " + str(e))
     print("Language pipeline stopped: " + cfg["name"])
@@ -451,8 +455,7 @@ def language_listener(lang_path):
     return render_template("listener.html",
                            lang_code=code,
                            lang_name=cfg["name"],
-                           lang_label=cfg["label"]
-                           )
+                           lang_label=cfg["label"])
 
 
 @app.route("/stream")
@@ -466,10 +469,10 @@ def stream():
 
     def generate():
         init = {
-            "type": "init",
-            "status": state["status"],
+            "type":    "init",
+            "status":  state["status"],
             "history": state["history"],
-            "active": ACTIVE_LANGUAGES,
+            "active":  ACTIVE_LANGUAGES,
         }
         yield "data: " + json.dumps(init) + "\n\n"
         try:
@@ -483,6 +486,7 @@ def stream():
         finally:
             with sse_lock:
                 sse_clients.pop(client_id, None)
+
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -498,7 +502,7 @@ def start():
     state.update({"running": True, "error": None, "last_english": ""})
     while not audio_queue.empty():
         audio_queue.get_nowait()
-    threading.Thread(target=recording_thread, daemon=True).start()
+    threading.Thread(target=recording_thread,     daemon=True).start()
     threading.Thread(target=transcription_thread, daemon=True).start()
     for code in ACTIVE_LANGUAGES:
         threading.Thread(target=language_pipeline, args=(code,), daemon=True).start()
@@ -516,10 +520,38 @@ def stop():
 def get_status():
     return jsonify({
         "running": state["running"],
-        "status": state["status"],
-        "error": state["error"],
-        "active": ACTIVE_LANGUAGES,
+        "status":  state["status"],
+        "error":   state["error"],
+        "active":  ACTIVE_LANGUAGES,
     })
+
+
+@app.route("/api/output-mode", methods=["GET"])
+def get_output_mode():
+    return jsonify({"mode": state["output_mode"]})
+
+
+@app.route("/api/output-mode", methods=["POST"])
+def set_output_mode():
+    mode = request.get_json().get("mode", "phones")
+    if mode not in ("phones", "speaker"):
+        return jsonify({"ok": False, "msg": "Invalid mode"})
+    state["output_mode"] = mode
+    # Reset speaker lang when switching modes
+    if mode == "phones":
+        state["speaker_lang"] = None
+    print("Output mode: " + mode)
+    return jsonify({"ok": True, "mode": mode})
+
+
+@app.route("/api/speaker-lang", methods=["POST"])
+def set_speaker_lang():
+    lang = request.get_json().get("lang", "ur")
+    if lang not in LANGUAGES:
+        return jsonify({"ok": False, "msg": "Unknown language"})
+    state["speaker_lang"] = lang
+    print("Speaker language: " + LANGUAGES[lang]["name"])
+    return jsonify({"ok": True})
 
 
 @app.route("/api/languages")
@@ -535,7 +567,8 @@ def get_devices():
     for i in range(pa.get_device_count()):
         d = pa.get_device_info_by_index(i)
         if d["maxInputChannels"] > 0:
-            devices.append({"index": i, "name": d["name"], "selected": state["input_device"] == i})
+            devices.append({"index": i, "name": d["name"],
+                            "selected": state["input_device"] == i})
     pa.terminate()
     return jsonify({"devices": devices, "current": state["input_device"]})
 
@@ -590,8 +623,8 @@ def import_glossary():
 
 @app.route("/api/pronounce", methods=["POST"])
 def pronounce():
-    body = request.get_json()
-    text = body.get("text", body.get("urdu", "")).strip()
+    body      = request.get_json()
+    text      = body.get("text", body.get("urdu", "")).strip()
     lang_code = body.get("lang", "ur")
     if not text:
         return ("No text", 400)
@@ -612,7 +645,6 @@ def get_qr_landing():
     try:
         import qrcode
         import socket
-        from flask import send_file
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.connect(("8.8.8.8", 80))
@@ -620,7 +652,7 @@ def get_qr_landing():
         finally:
             s.close()
         url = "http://" + ip + ":5050/listen"
-        qr = qrcode.QRCode(version=1, box_size=12, border=4)
+        qr  = qrcode.QRCode(version=1, box_size=12, border=4)
         qr.add_data(url)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
