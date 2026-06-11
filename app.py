@@ -119,6 +119,7 @@ state = {
 
 audio_queue     = queue.Queue()
 text_queue      = queue.Queue()
+playback_queue  = queue.Queue()
 
 sse_clients = {}
 sse_lock    = threading.Lock()
@@ -242,6 +243,22 @@ def play_mp3_bytes(mp3_bytes):
         import subprocess
         proc = subprocess.Popen(["mpg123", "-q", "-"], stdin=subprocess.PIPE)
         proc.communicate(input=mp3_bytes)
+
+
+def playback_worker():
+    """Single thread plays audio sequentially - no overlapping."""
+    print("Playback worker started")
+    while True:
+        try:
+            mp3_bytes = playback_queue.get(timeout=2)
+        except queue.Empty:
+            continue
+        if mp3_bytes is None:
+            break
+        try:
+            play_mp3_bytes(mp3_bytes)
+        except Exception as e:
+            print("Playback error: " + str(e))
 
 
 def is_speech(frame, threshold=600):
@@ -379,12 +396,8 @@ def translation_thread():
                 "ts":         time.strftime("%H:%M:%S"),
             }
             push_all("transcript", entry)
-            # Play on local speaker
-            threading.Thread(
-                target=play_mp3_bytes,
-                args=(mp3_bytes,),
-                daemon=True
-            ).start()
+            # Queue for sequential playback - no overlapping
+            playback_queue.put(mp3_bytes)
         except Exception as e:
             print("Translation error: " + str(e))
     print("Translation thread stopped")
@@ -582,4 +595,5 @@ if __name__ == "__main__":
     print("-" * 42)
     print("Control  : http://localhost:5050")
     print("-" * 42)
+    threading.Thread(target=playback_worker, daemon=True).start()
     app.run(host="0.0.0.0", port=5050, debug=False, threaded=True)
