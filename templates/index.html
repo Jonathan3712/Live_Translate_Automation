@@ -123,10 +123,6 @@
     <select id="device-select" onchange="selectDevice(this)">
       <option value="">System Default</option>
     </select>
-    <div class="card-title" style="margin-top:1rem;">🔊 Speaker Output</div>
-    <select id="speaker-select" onchange="selectSpeaker(this)">
-      <option value="">Loading...</option>
-    </select>
   </div>
 
   <!-- Active languages -->
@@ -184,9 +180,6 @@ function setFeedFilter(lang, btn) {
   feedFilter = lang;
   document.querySelectorAll(".feed-tab").forEach(function(b) { b.classList.remove("active"); });
   btn.classList.add("active");
-  if (lang !== "all") {
-    setSpeakerLang(lang);
-  }
   // Show/hide individual translation rows inside each entry
   document.querySelectorAll(".entry-tr").forEach(function(row) {
     var rowLang = row.dataset.lang || "";
@@ -319,11 +312,11 @@ es.onmessage = function(ev) {
   if (d.type === "ping") return;
   if (d.type === "init") {
     setStatus(d.status);
-    loadActiveLangs().then(loadSpeakerLang);
+    loadActiveLangs();
   }
   if (d.type === "status") setStatus(d.status);
   if (d.type === "transcript") addTranscript(d);
-  if (d.type === "english_text") showEnglishPending(d);
+    if (d.type === "english_text") showEnglishPending(d);
   if (d.type === "error") {
     var b = document.getElementById("error-banner");
     b.textContent = "Error: " + d.message;
@@ -387,42 +380,8 @@ async function selectDevice(sel) {
   });
 }
 
-async function loadSpeakerLang() {
-  var r   = await fetch("/api/speaker-lang");
-  var j   = await r.json();
-  var sel = document.getElementById("speaker-select");
-  sel.innerHTML = "";
-  (j.options || []).forEach(function(code) {
-    var cfg = activeLangs[code];
-    if (!cfg) return;
-    var opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = cfg.name;
-    if (code === j.current) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-
-async function setSpeakerLang(lang) {
-  var sel = document.getElementById("speaker-select");
-  if (sel && sel.value !== lang) sel.value = lang;
-  await fetch("/api/output-mode", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({mode: "speaker"})
-  });
-  await fetch("/api/speaker-lang", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({lang: lang})
-  });
-}
-
-async function selectSpeaker(sel) {
-  if (!sel.value) return;
-  await setSpeakerLang(sel.value);
-}
-
 loadDevices();
-loadActiveLangs().then(loadSpeakerLang);
+loadActiveLangs();
 </script>
 </body>
 </html>
