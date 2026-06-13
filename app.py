@@ -5,7 +5,7 @@ Cross-platform: Mac (afplay) | Windows (pygame) | Linux (mpg123)
 Audio plays locally (Mac/Windows/Linux) and streams to listener phones via SSE
 """
 from flask_cors import CORS
-from flask import Flask, render_template, Response, jsonify, request
+from flask import Flask, render_template, Response, jsonify, request, send_file
 import os
 import io
 import re
@@ -51,10 +51,9 @@ except ImportError:
     GTTS_AVAILABLE = False
     print("gTTS not installed. Run: pip install gTTS")
 
-# Windows only - pygame for in-memory audio playback
 if sys.platform == "win32":
     try:
-        import pygame
+        import pygame  # pylint: disable=import-error
         PYGAME_AVAILABLE = True
     except ImportError:
         PYGAME_AVAILABLE = False
@@ -110,13 +109,14 @@ CORS(app)
 
 state = {
     "running": False,
+    "output_mode": "phones",  # "phones" or "speaker"
     "cooldown_until": 0,
     "last_english": "",
     "history": [],
     "status": "idle",
     "error": None,
     "input_device": None,
-    "speaker_lang": ACTIVE_LANGUAGES[0] if ACTIVE_LANGUAGES else None,
+    "speaker_lang": None,  # required when output_mode == "speaker"
 }
 
 audio_queue = queue.Queue()
@@ -253,7 +253,6 @@ def play_mp3_bytes(mp3_bytes):
             os.unlink(tmp.name)
         except OSError:
             pass
-
     elif sys.platform == "win32":
         import pygame  # pylint: disable=import-error
         buf = io.BytesIO(mp3_bytes)
@@ -264,7 +263,6 @@ def play_mp3_bytes(mp3_bytes):
             time.sleep(0.05)
         pygame.mixer.music.stop()
         pygame.mixer.quit()
-
     else:
         import subprocess
         proc = subprocess.Popen(["mpg123", "-q", "-"], stdin=subprocess.PIPE)
@@ -358,22 +356,18 @@ def transcription_thread():
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            # Block URLs and website addresses Whisper hallucinates
-            import re as _re
-            if _re.search(r"https?://|www\.|\.(com|org|net|uk|co)", english.lower()):
+            if re.search(r"https?://|www\.|\.( com|org|net|uk|co)", english.lower()):
                 print("URL hallucination filtered: " + english[:50])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
             curr = english.strip().lower()
             last = state["last_english"].strip().lower()
-            # Block exact duplicates and near-duplicates (one word different)
             if curr == last:
                 print("Duplicate skipped: " + english[:40])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            # Block if too similar (Whisper repeating with minor variation)
             if len(curr) > 10 and len(last) > 10:
                 overlap = len(set(curr.split()) & set(last.split()))
                 total = max(len(set(curr.split())), len(set(last.split())))
@@ -423,10 +417,13 @@ def language_pipeline(lang_code):
                 "ts": time.strftime("%H:%M:%S"),
             }
             push_to_lang(lang_code, "transcript", entry)
-            push_to_lang(lang_code, "audio", {"data": b64_audio})
             push_all("transcript", entry)
-            if lang_code == state["speaker_lang"]:
+            if state["output_mode"] == "phones":
+                push_to_lang(lang_code, "audio", {"data": b64_audio})
+            elif state["speaker_lang"] is not None and lang_code == state["speaker_lang"]:
                 play_local_mp3(mp3_bytes)
+            elif state["speaker_lang"] is None:
+                print("Speaker mode: no language selected - audio skipped")
         except Exception as e:
             print("Pipeline error [" + lang_code + "]: " + str(e))
     print("Language pipeline stopped: " + cfg["name"])
@@ -465,8 +462,7 @@ def language_listener(lang_path):
     return render_template("listener.html",
                            lang_code=code,
                            lang_name=cfg["name"],
-                           lang_label=cfg["label"]
-                           )
+                           lang_label=cfg["label"])
 
 
 @app.route("/stream")
@@ -497,6 +493,7 @@ def stream():
         finally:
             with sse_lock:
                 sse_clients.pop(client_id, None)
+
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -533,8 +530,42 @@ def get_status():
         "status": state["status"],
         "error": state["error"],
         "active": ACTIVE_LANGUAGES,
+        "output_mode": state["output_mode"],
         "speaker_lang": state["speaker_lang"],
     })
+
+
+@app.route("/api/output-mode", methods=["GET"])
+def get_output_mode():
+    return jsonify({"mode": state["output_mode"]})
+
+
+@app.route("/api/output-mode", methods=["POST"])
+def set_output_mode():
+    mode = request.get_json().get("mode", "phones")
+    if mode not in ("phones", "speaker"):
+        return jsonify({"ok": False, "msg": "Invalid mode"})
+    state["output_mode"] = mode
+    # Reset speaker lang when switching modes
+    if mode == "phones":
+        state["speaker_lang"] = None
+    print("Output mode: " + mode)
+    return jsonify({"ok": True, "mode": mode})
+
+
+@app.route("/api/speaker-lang", methods=["POST"])
+def set_speaker_lang():
+    lang = request.get_json().get("lang")
+    if lang not in ACTIVE_LANGUAGES:
+        return jsonify({"ok": False, "msg": "Invalid language"}), 400
+    state["speaker_lang"] = lang
+    print("Speaker language: " + LANGUAGES[lang]["name"])
+    return jsonify({"ok": True, "lang": lang})
+
+
+@app.route("/api/speaker-lang")
+def get_speaker_lang():
+    return jsonify({"current": state["speaker_lang"], "options": ACTIVE_LANGUAGES})
 
 
 @app.route("/api/languages")
@@ -550,7 +581,8 @@ def get_devices():
     for i in range(pa.get_device_count()):
         d = pa.get_device_info_by_index(i)
         if d["maxInputChannels"] > 0:
-            devices.append({"index": i, "name": d["name"], "selected": state["input_device"] == i})
+            devices.append({"index": i, "name": d["name"],
+                            "selected": state["input_device"] == i})
     pa.terminate()
     return jsonify({"devices": devices, "current": state["input_device"]})
 
@@ -559,20 +591,6 @@ def get_devices():
 def set_device():
     state["input_device"] = request.get_json().get("index")
     return jsonify({"ok": True})
-
-
-@app.route("/api/speaker-lang")
-def get_speaker_lang():
-    return jsonify({"current": state["speaker_lang"], "options": ACTIVE_LANGUAGES})
-
-
-@app.route("/api/speaker-lang", methods=["POST"])
-def set_speaker_lang():
-    lang = request.get_json().get("lang")
-    if lang not in ACTIVE_LANGUAGES:
-        return jsonify({"ok": False, "msg": "Invalid language"}), 400
-    state["speaker_lang"] = lang
-    return jsonify({"ok": True, "lang": lang})
 
 
 @app.route("/api/glossary", methods=["GET"])
@@ -641,7 +659,6 @@ def get_qr_landing():
     try:
         import qrcode
         import socket
-        from flask import send_file
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.connect(("8.8.8.8", 80))

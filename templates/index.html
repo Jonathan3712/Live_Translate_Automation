@@ -406,6 +406,10 @@ async function loadSpeakerLang() {
 async function setSpeakerLang(lang) {
   var sel = document.getElementById("speaker-select");
   if (sel && sel.value !== lang) sel.value = lang;
+  await fetch("/api/output-mode", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({mode: "speaker"})
+  });
   await fetch("/api/speaker-lang", {
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({lang: lang})
