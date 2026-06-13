@@ -176,31 +176,23 @@ function playNext() {
     audioPlaying = false;
     return;
   }
-  audioPlaying = true;
-  var b64      = audioQueue.shift();
-  var binary   = atob(b64);
-  var bytes    = new Uint8Array(binary.length);
+  audioPlaying  = true;
+  var b64       = audioQueue.shift();
+  var binary    = atob(b64);
+  var bytes     = new Uint8Array(binary.length);
   for (var i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  var blob = new Blob([bytes], { type: "audio/mpeg" });
-  var url  = URL.createObjectURL(blob);
-  var a    = new Audio(url);
-  a.onended = function() {
-    URL.revokeObjectURL(url);
-    audioPlaying = false;
-    playNext();
-  };
-  a.onerror = function() {
-    URL.revokeObjectURL(url);
-    audioPlaying = false;
-    playNext();
-  };
-  a.play().catch(function() {
-    URL.revokeObjectURL(url);
-    audioPlaying = false;
-    playNext();
-  });
+  audioCtx.decodeAudioData(bytes.buffer,
+    function(audioBuf) {
+      var src    = audioCtx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(audioCtx.destination);
+      src.onended = function() { audioPlaying = false; playNext(); };
+      src.start(0);
+    },
+    function() { audioPlaying = false; playNext(); }
+  );
 }
 </script>
 </body>
