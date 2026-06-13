@@ -3,7 +3,7 @@
 #
 # Usage:
 #   ./scripts/run_pylint.sh          # check only
-#   ./scripts/run_pylint.sh --fix    # auto-fix style, then check
+#   ./scripts/run_pylint.sh --fix    # auto-fix style, then check good change is made
 
 set -euo pipefail
 
