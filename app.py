@@ -2,7 +2,7 @@
 Live Stage Transcription System
 Multi-language simultaneous translation
 Cross-platform: Mac (afplay) | Windows (pygame) | Linux (mpg123)
-Audio delivered to phones via SSE - no local speaker required
+Audio plays locally (Mac/Windows/Linux) and streams to listener phones via SSE
 """
 from flask_cors import CORS
 from flask import Flask, render_template, Response, jsonify, request
@@ -116,6 +116,7 @@ state = {
     "status": "idle",
     "error": None,
     "input_device": None,
+    "speaker_lang": ACTIVE_LANGUAGES[0] if ACTIVE_LANGUAGES else None,
 }
 
 audio_queue = queue.Queue()
@@ -123,6 +124,7 @@ lang_text_queues = {code: queue.Queue() for code in LANGUAGES}
 
 sse_clients = {}
 sse_lock = threading.Lock()
+playback_lock = threading.Lock()
 
 
 def push_to_lang(lang_code, event_type, data):
@@ -269,6 +271,17 @@ def play_mp3_bytes(mp3_bytes):
         proc.communicate(input=mp3_bytes)
 
 
+def play_local_mp3(mp3_bytes):
+    """Play translated audio through system speakers (serialized across languages)."""
+    with playback_lock:
+        state["cooldown_until"] = max(state["cooldown_until"], time.time() + 1.0)
+        try:
+            play_mp3_bytes(mp3_bytes)
+        except Exception as e:
+            print("Local playback error: " + str(e))
+        state["cooldown_until"] = time.time() + 1.5
+
+
 def is_speech(frame, threshold=600):
     samples = struct.unpack(str(len(frame) // 2) + "h", frame)
     rms = (sum(s * s for s in samples) / len(samples)) ** 0.5
@@ -411,8 +424,9 @@ def language_pipeline(lang_code):
             }
             push_to_lang(lang_code, "transcript", entry)
             push_to_lang(lang_code, "audio", {"data": b64_audio})
-            # Also push to admin panel (lang=None clients)
             push_all("transcript", entry)
+            if lang_code == state["speaker_lang"]:
+                play_local_mp3(mp3_bytes)
         except Exception as e:
             print("Pipeline error [" + lang_code + "]: " + str(e))
     print("Language pipeline stopped: " + cfg["name"])
@@ -519,6 +533,7 @@ def get_status():
         "status": state["status"],
         "error": state["error"],
         "active": ACTIVE_LANGUAGES,
+        "speaker_lang": state["speaker_lang"],
     })
 
 
@@ -544,6 +559,20 @@ def get_devices():
 def set_device():
     state["input_device"] = request.get_json().get("index")
     return jsonify({"ok": True})
+
+
+@app.route("/api/speaker-lang")
+def get_speaker_lang():
+    return jsonify({"current": state["speaker_lang"], "options": ACTIVE_LANGUAGES})
+
+
+@app.route("/api/speaker-lang", methods=["POST"])
+def set_speaker_lang():
+    lang = request.get_json().get("lang")
+    if lang not in ACTIVE_LANGUAGES:
+        return jsonify({"ok": False, "msg": "Invalid language"}), 400
+    state["speaker_lang"] = lang
+    return jsonify({"ok": True, "lang": lang})
 
 
 @app.route("/api/glossary", methods=["GET"])
