@@ -22,7 +22,7 @@ disable =
 generated-members=setnchannels,setsampwidth,setframerate,writeframes
 
 [BASIC]
-good-names=SILENCE_CHUNKS,MAX_SECONDS,MIN_SPEECH_FRAMES,pa,wf,qr,buf,tmp,proc,g,ph
+good-names=SILENCE_CHUNKS,MAX_SECONDS,MIN_SPEECH_FRAMES,PRE_ROLL_CHUNKS,AUDIO_QUEUE_MAX,COOLDOWN_SECONDS,VAD_CALIBRATION_CHUNKS,VAD_MIN_THRESHOLD,VAD_NOISE_MULTIPLIER,pa,wf,qr,buf,tmp,proc,g,ph
 
 [FORMAT]
 max-line-length=100

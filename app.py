@@ -20,6 +20,7 @@ import platform
 import threading
 import tempfile
 import wave
+from collections import deque
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -68,6 +69,17 @@ AUDIO_DIR = tempfile.gettempdir()
 SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
 CHANNELS = 1
+
+# Utterance segmentation tuning (~64 ms per chunk at 16 kHz / 1024 samples)
+SILENCE_CHUNKS = 25          # ~1.6 s of silence ends a segment
+MIN_SPEECH_FRAMES = 5        # ~320 ms minimum speech before sending
+MAX_SECONDS = 20             # hard cap per utterance
+PRE_ROLL_CHUNKS = 5          # ~320 ms prepended to catch word onsets
+AUDIO_QUEUE_MAX = 5          # drop oldest segment when backlog grows
+COOLDOWN_SECONDS = 1.5       # pause before starting next segment
+VAD_CALIBRATION_CHUNKS = 32  # ~2 s room-noise sample at session start
+VAD_MIN_THRESHOLD = 400
+VAD_NOISE_MULTIPLIER = 2.5
 
 NOISE_PHRASES = [
     "thank you for watching", "thank you for listening",
@@ -120,6 +132,8 @@ state = {
 audio_queue = queue.Queue()
 text_queue = queue.Queue()
 playback_queue = queue.Queue()
+
+_playback_worker_started = False
 
 sse_clients = {}
 sse_lock = threading.Lock()
@@ -256,53 +270,93 @@ def playback_worker():
         if mp3_bytes is None:
             break
         try:
+            state["cooldown_until"] = max(state["cooldown_until"], time.time() + 0.5)
             play_mp3_bytes(mp3_bytes)
+            state["cooldown_until"] = time.time() + COOLDOWN_SECONDS
         except Exception as e:
             print("Playback error: " + str(e))
 
 
-def is_speech(frame, threshold=600):
+def ensure_playback_worker():
+    global _playback_worker_started
+    if not _playback_worker_started:
+        threading.Thread(target=playback_worker, daemon=True).start()
+        _playback_worker_started = True
+
+
+def frame_rms(frame):
     samples = struct.unpack(str(len(frame) // 2) + "h", frame)
-    rms = (sum(s * s for s in samples) / len(samples)) ** 0.5
-    return rms > threshold
+    return (sum(s * s for s in samples) / len(samples)) ** 0.5
+
+
+def is_speech(frame, threshold):
+    return frame_rms(frame) > threshold
+
+
+def calibrate_vad_threshold(stream):
+    """Measure room noise at session start and set a dynamic speech threshold."""
+    levels = []
+    for _ in range(VAD_CALIBRATION_CHUNKS):
+        frame = stream.read(CHUNK_SIZE, exception_on_overflow=False)
+        levels.append(frame_rms(frame))
+    noise = sorted(levels)[len(levels) // 2]
+    threshold = max(VAD_MIN_THRESHOLD, noise * VAD_NOISE_MULTIPLIER)
+    print("VAD calibrated: noise=" + str(int(noise)) + " threshold=" + str(int(threshold)))
+    return threshold
+
+
+def enqueue_audio_segment(pcm):
+    """Queue audio for transcription; drop oldest segment if backlog is too large."""
+    while audio_queue.qsize() >= AUDIO_QUEUE_MAX:
+        try:
+            audio_queue.get_nowait()
+            print("Audio queue full - dropped oldest segment")
+        except queue.Empty:
+            break
+    audio_queue.put(pcm)
 
 
 def recording_thread():
-    SILENCE_CHUNKS = 50
-    MAX_SECONDS = 15
-    MIN_SPEECH_FRAMES = 8
     pa = pyaudio.PyAudio()
     kwargs = dict(format=pyaudio.paInt16, channels=CHANNELS,
                   rate=SAMPLE_RATE, input=True, frames_per_buffer=CHUNK_SIZE)
     if state["input_device"] is not None:
         kwargs["input_device_index"] = state["input_device"]
     stream = pa.open(**kwargs)
+    vad_threshold = calibrate_vad_threshold(stream)
+    pre_roll = deque(maxlen=PRE_ROLL_CHUNKS)
+    max_frames = int(SAMPLE_RATE / CHUNK_SIZE * MAX_SECONDS)
     print("Recording started (device: " + str(state["input_device"] or "default") + ")")
     try:
         while state["running"]:
-            frames, silence_count, speaking = [], 0, False
-            max_frames = int(SAMPLE_RATE / CHUNK_SIZE * MAX_SECONDS)
-            while state["running"]:
+            speaking = False
+            while state["running"] and not speaking:
                 frame = stream.read(CHUNK_SIZE, exception_on_overflow=False)
+                pre_roll.append(frame)
                 if time.time() < state["cooldown_until"]:
                     continue
-                if is_speech(frame):
+                if is_speech(frame, vad_threshold):
                     speaking = True
-                    frames.append(frame)
-                    break
             if not speaking:
                 continue
+
+            frames = list(pre_roll)
+            pre_roll.clear()
+            silence_count = 0
+
             while state["running"] and len(frames) < max_frames:
                 frame = stream.read(CHUNK_SIZE, exception_on_overflow=False)
-                frames.append(frame)
-                if is_speech(frame):
+                pre_roll.append(frame)
+                if is_speech(frame, vad_threshold):
                     silence_count = 0
+                    frames.append(frame)
                 else:
                     silence_count += 1
                     if silence_count >= SILENCE_CHUNKS:
                         break
+
             if len(frames) >= MIN_SPEECH_FRAMES:
-                audio_queue.put(b"".join(frames))
+                enqueue_audio_segment(b"".join(frames))
     finally:
         stream.stop_stream()
         stream.close()
@@ -337,7 +391,7 @@ def transcription_thread():
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
-            if re.search(r"https?://|www\.|\.( com|org|net|uk|co)", english.lower()):
+            if re.search(r"https?://|www\.|\.(com|org|net|uk|co)", english.lower()):
                 print("URL hallucination filtered: " + english[:50])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
@@ -358,7 +412,7 @@ def transcription_thread():
                     push_all("status", {"status": "listening"})
                     continue
             state["last_english"] = english
-            state["cooldown_until"] = time.time() + 3.0
+            state["cooldown_until"] = time.time() + COOLDOWN_SECONDS
             state["status"] = "translating"
             push_all("status", {"status": "translating"})
             print("Transcribed: " + english[:60])
@@ -457,6 +511,7 @@ def start():
         audio_queue.get_nowait()
     while not text_queue.empty():
         text_queue.get_nowait()
+    ensure_playback_worker()
     threading.Thread(target=recording_thread, daemon=True).start()
     threading.Thread(target=transcription_thread, daemon=True).start()
     threading.Thread(target=translation_thread, daemon=True).start()
