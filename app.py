@@ -133,7 +133,8 @@ audio_queue = queue.Queue()
 text_queue = queue.Queue()
 playback_queue = queue.Queue()
 
-_playback_worker_started = False
+playback_worker_lock = threading.Lock()
+playback_worker_started = threading.Event()
 
 sse_clients = {}
 sse_lock = threading.Lock()
@@ -278,10 +279,11 @@ def playback_worker():
 
 
 def ensure_playback_worker():
-    global _playback_worker_started
-    if not _playback_worker_started:
+    with playback_worker_lock:
+        if playback_worker_started.is_set():
+            return
         threading.Thread(target=playback_worker, daemon=True).start()
-        _playback_worker_started = True
+        playback_worker_started.set()
 
 
 def frame_rms(frame):
