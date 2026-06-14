@@ -20,7 +20,8 @@ import platform
 import threading
 import tempfile
 import wave
-from collections import deque
+import hashlib
+from collections import deque, OrderedDict
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -81,6 +82,10 @@ VAD_CALIBRATION_CHUNKS = 32  # ~2 s room-noise sample at session start
 VAD_MIN_THRESHOLD = 400
 VAD_NOISE_MULTIPLIER = 2.5
 
+# Translation / TTS caches
+TRANSLATION_CACHE_MAX = 1000
+TTS_MEMORY_CACHE_MAX = 500
+
 NOISE_PHRASES = [
     "thank you for watching", "thank you for listening",
     "thanks for watching", "thanks for listening",
@@ -139,6 +144,14 @@ playback_worker_started = threading.Event()
 sse_clients = {}
 sse_lock = threading.Lock()
 
+_cache_lock = threading.Lock()
+_openai_holder = {"client": None}
+_translator_holder = {}
+_glossary_mem = {}
+_glossary_versions = {}
+_translation_lru = OrderedDict()
+_tts_memory_lru = OrderedDict()
+
 
 def push_all(event_type, data):
     payload = "data: " + json.dumps({"type": event_type, **data}) + "\n\n"
@@ -152,18 +165,46 @@ def get_openai():
         raise RuntimeError("openai not installed")
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not set in .env")
-    from openai import OpenAI
-    return OpenAI(api_key=OPENAI_API_KEY)
+    with _cache_lock:
+        if _openai_holder["client"] is None:
+            from openai import OpenAI
+            _openai_holder["client"] = OpenAI(api_key=OPENAI_API_KEY)
+        return _openai_holder["client"]
 
 
 GLOSSARY_DIR = os.path.dirname(os.path.abspath(__file__))
+CACHE_DIR = os.path.join(GLOSSARY_DIR, "cache")
+TTS_CACHE_DIR = os.path.join(CACHE_DIR, "tts")
+
+
+def _lru_get(cache, key):
+    if key in cache:
+        cache.move_to_end(key)
+        return cache[key]
+    return None
+
+
+def _lru_put(cache, key, value, max_size):
+    cache[key] = value
+    cache.move_to_end(key)
+    while len(cache) > max_size:
+        cache.popitem(last=False)
+
+
+def get_translator(target_lang):
+    with _cache_lock:
+        if target_lang not in _translator_holder:
+            _translator_holder[target_lang] = GoogleTranslator(
+                source="en", target=target_lang
+            )
+        return _translator_holder[target_lang]
 
 
 def glossary_file(lang):
     return os.path.join(GLOSSARY_DIR, "glossary_" + lang + ".json")
 
 
-def load_glossary(lang="ur"):
+def _load_glossary_from_disk(lang="ur"):
     path = glossary_file(lang)
     legacy = os.path.join(GLOSSARY_DIR, "glossary.json")
     if not os.path.exists(path) and lang == "ur" and os.path.exists(legacy):
@@ -175,15 +216,56 @@ def load_glossary(lang="ur"):
     return {}
 
 
+def fetch_glossary(lang="ur"):
+    with _cache_lock:
+        if lang in _glossary_mem:
+            return _glossary_mem[lang]
+    glossary = _load_glossary_from_disk(lang)
+    with _cache_lock:
+        _glossary_mem[lang] = glossary
+        _glossary_versions.setdefault(lang, 0)
+        return _glossary_mem[lang]
+
+
+def invalidate_glossary_cache(lang):
+    with _cache_lock:
+        _glossary_mem.pop(lang, None)
+        _glossary_versions[lang] = _glossary_versions.get(lang, 0) + 1
+        stale = [k for k in _translation_lru if k[1] == lang]
+        for key in stale:
+            del _translation_lru[key]
+
+
+def load_glossary(lang="ur"):
+    return fetch_glossary(lang)
+
+
 def save_glossary(g, lang="ur"):
     with open(glossary_file(lang), "w", encoding="utf-8") as f:
         json.dump(g, f, ensure_ascii=False, indent=2)
+    with _cache_lock:
+        _glossary_mem[lang] = dict(g)
+        _glossary_versions[lang] = _glossary_versions.get(lang, 0) + 1
+        stale = [k for k in _translation_lru if k[1] == lang]
+        for key in stale:
+            del _translation_lru[key]
+
+
+def _translation_cache_key(english, lang):
+    ver = _glossary_versions.get(lang, 0) if lang == "ur" else 0
+    return (english.strip().lower(), lang, ver)
 
 
 def translate_text(english, lang):
-    from deep_translator import GoogleTranslator
+    cache_key = _translation_cache_key(english, lang)
+    with _cache_lock:
+        cached = _lru_get(_translation_lru, cache_key)
+    if cached is not None:
+        print("Translation cache hit: " + english[:40])
+        return cached
+
     if lang == "ur":
-        glossary = load_glossary("ur")
+        glossary = fetch_glossary("ur")
         placeholders = {}
         protected = english
         for i, (eng, urd) in enumerate(sorted(glossary.items(), key=lambda x: -len(x[0]))):
@@ -192,11 +274,16 @@ def translate_text(english, lang):
                 ph = "__TERM" + str(i) + "__"
                 placeholders[ph] = urd
                 protected = pattern.sub(ph, protected)
-        translated = GoogleTranslator(source="en", target="ur").translate(protected)
+        translated = get_translator("ur").translate(protected)
         for ph, urd in placeholders.items():
             translated = translated.replace(ph, urd)
-        return translated.strip()
-    return GoogleTranslator(source="en", target=lang).translate(english).strip()
+        result = translated.strip()
+    else:
+        result = get_translator(lang).translate(english).strip()
+
+    with _cache_lock:
+        _lru_put(_translation_lru, cache_key, result, TRANSLATION_CACHE_MAX)
+    return result
 
 
 def pcm_to_wav(pcm):
@@ -223,13 +310,64 @@ def transcribe(wav_bytes):
     return result.strip() if isinstance(result, str) else result.text.strip()
 
 
+def _tts_disk_path(text, gtts_code):
+    slow = gtts_code == "ne"
+    raw = gtts_code + "|" + ("slow" if slow else "fast") + "|" + text.strip()
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return os.path.join(TTS_CACHE_DIR, digest + ".mp3")
+
+
 def generate_audio_bytes(text, gtts_code):
     from gtts import gTTS
-    buf = io.BytesIO()
     slow = gtts_code == "ne"
+    mem_key = (text.strip(), gtts_code, slow)
+
+    with _cache_lock:
+        cached = _lru_get(_tts_memory_lru, mem_key)
+    if cached is not None:
+        print("TTS cache hit (memory): " + text[:40])
+        return cached
+
+    disk_path = _tts_disk_path(text, gtts_code)
+    if os.path.exists(disk_path):
+        with open(disk_path, "rb") as f:
+            mp3_bytes = f.read()
+        with _cache_lock:
+            _lru_put(_tts_memory_lru, mem_key, mp3_bytes, TTS_MEMORY_CACHE_MAX)
+        print("TTS cache hit (disk): " + text[:40])
+        return mp3_bytes
+
+    buf = io.BytesIO()
     gTTS(text=text, lang=gtts_code, slow=slow).write_to_fp(buf)
     buf.seek(0)
-    return buf.read()
+    mp3_bytes = buf.read()
+
+    os.makedirs(TTS_CACHE_DIR, exist_ok=True)
+    with open(disk_path, "wb") as f:
+        f.write(mp3_bytes)
+    with _cache_lock:
+        _lru_put(_tts_memory_lru, mem_key, mp3_bytes, TTS_MEMORY_CACHE_MAX)
+    return mp3_bytes
+
+
+def prewarm_cache(lang):
+    """Pre-cache glossary translations and TTS audio for faster first playback."""
+    cfg = LANGUAGES.get(lang)
+    if not cfg:
+        return
+    glossary = fetch_glossary(lang) if lang == "ur" else {}
+    warmed = 0
+    for eng, translated in glossary.items():
+        cache_key = _translation_cache_key(eng, lang)
+        with _cache_lock:
+            _lru_put(_translation_lru, cache_key, translated, TRANSLATION_CACHE_MAX)
+        try:
+            generate_audio_bytes(translated, cfg["gtts"])
+            warmed += 1
+        except Exception as e:
+            print("Prewarm skip [" + eng[:30] + "]: " + str(e))
+    if warmed:
+        print("Cache prewarmed: " + str(warmed) + " glossary terms for " + cfg["name"])
 
 
 def play_mp3_bytes(mp3_bytes):
@@ -517,6 +655,9 @@ def start():
     threading.Thread(target=recording_thread, daemon=True).start()
     threading.Thread(target=transcription_thread, daemon=True).start()
     threading.Thread(target=translation_thread, daemon=True).start()
+    threading.Thread(
+        target=prewarm_cache, args=(state["speaker_lang"],), daemon=True
+    ).start()
     push_all("status", {"status": "listening"})
     return jsonify({"ok": True, "lang": state["speaker_lang"]})
 
@@ -529,11 +670,17 @@ def stop():
 
 @app.route("/status")
 def get_status():
+    with _cache_lock:
+        cache_stats = {
+            "translation_entries": len(_translation_lru),
+            "tts_memory_entries": len(_tts_memory_lru),
+        }
     return jsonify({
         "running": state["running"],
         "status": state["status"],
         "error": state["error"],
         "speaker_lang": state["speaker_lang"],
+        "cache": cache_stats,
     })
 
 
@@ -623,13 +770,8 @@ def pronounce():
     if not text:
         return ("No text", 400)
     try:
-        from gtts import gTTS
         gtts_code = LANGUAGES.get(lang_code, {}).get("gtts", "ur")
-        tts = gTTS(text=text, lang=gtts_code)
-        buf = io.BytesIO()
-        tts.write_to_fp(buf)
-        buf.seek(0)
-        return Response(buf.read(), mimetype="audio/mpeg")
+        return Response(generate_audio_bytes(text, gtts_code), mimetype="audio/mpeg")
     except Exception as e:
         return (str(e), 500)
 
