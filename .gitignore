@@ -10,3 +10,5 @@ venv/
 .env
 *.pyc
 glossary.json
+.DS_Store
+.DS_Store
