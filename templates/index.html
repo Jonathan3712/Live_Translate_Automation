@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Transcription — Control Panel</title>
+<title>Live Transcription — Hindi / Urdu / Chinese</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --accent:#7c6af7; --accent2:#f97316; --green:#22c55e; --red:#ef4444; --text:#e8e8f0; --muted:#6b6b80; }
@@ -126,15 +126,18 @@ function setStatus(s) {
   document.getElementById("dot").className = "dot " + m.cls;
 }
 
+// Only show these three languages
+var ENABLED_LANGS = ["ur", "hi", "zh-CN"];
+
 async function loadLanguages() {
   var r = await fetch("/api/languages");
   allLangs = await r.json();
   var pills = document.getElementById("lang-pills");
   pills.innerHTML = "";
-  Object.entries(allLangs).forEach(function(entry) {
-    var code = entry[0];
-    var cfg  = entry[1];
-    var btn  = document.createElement("button");
+  ENABLED_LANGS.forEach(function(code) {
+    var cfg = allLangs[code];
+    if (!cfg) return;
+    var btn = document.createElement("button");
     btn.className = "lang-pill" + (code === currentLang ? " active" : "");
     btn.textContent = cfg.name + " · " + cfg.label;
     btn.dataset.code = code;
