@@ -97,6 +97,7 @@ LANGUAGES = {
     "pt":    {"name": "Portuguese", "gtts": "pt",    "label": "Portuguese"},
     "sw":    {"name": "Swahili",    "gtts": "sw",    "label": "Swahili"},
     "pa":    {"name": "Punjabi",    "gtts": "pa",    "label": "Punjabi"},
+    "ta":    {"name": "Tamil",      "gtts": "ta",    "label": "தமிழ்"},
 }
 
 # --- Edit this to change which language plays through the speaker ---
