@@ -1,25 +1,13 @@
 """
-Live Stage Transcription System
-Multi-language simultaneous translation
-Cross-platform: Mac (afplay) | Windows (pygame) | Linux (mpg123)
-Audio plays through local speaker - no phone listener pages
+Live Stage Transcription - Individual Phone Listener Mode
+People connect from their own phone via church WiFi
+Audio pushed via SSE to their phone earphones
+Cross-platform: Mac | Windows | Linux
 """
 from flask_cors import CORS
 from flask import Flask, render_template, Response, jsonify, request, send_file
-import os
-import io
-import re
-import sys
-import json
-import time
-import uuid
-import queue
-import struct
-import base64
-import platform
-import threading
-import tempfile
-import wave
+import os, io, re, sys, json, time, uuid, queue, struct, base64
+import platform, threading, tempfile, wave
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -61,13 +49,11 @@ if sys.platform == "win32":
 else:
     PYGAME_AVAILABLE = False
 
-OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY", "")
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-SYSTEM    = platform.system()
-AUDIO_DIR = tempfile.gettempdir()
-SAMPLE_RATE = 16000
-CHUNK_SIZE  = 1024
-CHANNELS    = 1
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+SYSTEM         = platform.system()
+SAMPLE_RATE    = 16000
+CHUNK_SIZE     = 1024
+CHANNELS       = 1
 
 NOISE_PHRASES = [
     "thank you for watching", "thank you for listening",
@@ -86,29 +72,15 @@ HALLUCINATION_EXACT = {
 }
 
 LANGUAGES = {
-    "ur":    {"name": "Urdu",       "gtts": "ur",    "label": "Urdu"},
-    "ne":    {"name": "Nepali",     "gtts": "ne",    "label": "Nepali"},
-    "zh-CN": {"name": "Chinese",    "gtts": "zh-CN", "label": "Chinese"},
-    "hi":    {"name": "Hindi",      "gtts": "hi",    "label": "Hindi"},
-    "ar":    {"name": "Arabic",     "gtts": "ar",    "label": "Arabic"},
-    "es":    {"name": "Spanish",    "gtts": "es",    "label": "Spanish"},
-    "fr":    {"name": "French",     "gtts": "fr",    "label": "French"},
-    "tr":    {"name": "Turkish",    "gtts": "tr",    "label": "Turkish"},
-    "pt":    {"name": "Portuguese", "gtts": "pt",    "label": "Portuguese"},
-    "sw":    {"name": "Swahili",    "gtts": "sw",    "label": "Swahili"},
-    "pa":    {"name": "Punjabi",    "gtts": "pa",    "label": "Punjabi"},
-    "ta":    {"name": "Tamil",      "gtts": "ta",    "label": "Tamil"},
+    "ur":    {"name": "Urdu",    "gtts": "ur",    "label": "\u0627\u0631\u062f\u0648",     "path": "urdu"},
+    "zh-CN": {"name": "Chinese", "gtts": "zh-CN", "label": "\u4e2d\u6587",                    "path": "chinese"},
+    "ta":    {"name": "Tamil",   "gtts": "ta",    "label": "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd","path": "tamil"},
 }
+PATH_TO_CODE = {cfg["path"]: code for code, cfg in LANGUAGES.items()}
 
-PATH_TO_CODE = {cfg["path"]: code for code, cfg in LANGUAGES.items() if "path" in cfg}
-
-# --- Edit this list to enable active languages for phone listeners ---
-ACTIVE_LANGUAGES = ["ur", "ne", "ta"]
-# -------------------------------------------------------------------
-
-# (SPEAKER_LANGUAGE kept for reference but not used in this branch)
-SPEAKER_LANGUAGE = "ta"
-# ------------------------------------------------------------------
+# --- Edit this list to enable/disable languages ---
+ACTIVE_LANGUAGES = ["ur", "zh-CN", "ta"]
+# --------------------------------------------------
 
 app = Flask(__name__)
 CORS(app)
@@ -121,19 +93,16 @@ state = {
     "status":         "idle",
     "error":          None,
     "input_device":   None,
-    "speaker_lang":   SPEAKER_LANGUAGE,
 }
 
-audio_queue     = queue.Queue()
-text_queue      = queue.Queue()
-playback_queue  = queue.Queue()
+audio_queue      = queue.Queue()
+lang_text_queues = {code: queue.Queue() for code in LANGUAGES}
 
 sse_clients = {}
 sse_lock    = threading.Lock()
 
 
 def push_to_lang(lang_code, event_type, data):
-    """Push event only to clients listening to this specific language."""
     payload = "data: " + json.dumps({"type": event_type, "lang": lang_code, **data}) + "\n\n"
     with sse_lock:
         for client in sse_clients.values():
@@ -142,7 +111,6 @@ def push_to_lang(lang_code, event_type, data):
 
 
 def push_all(event_type, data):
-    """Push status events to all clients. Never push audio to all."""
     payload = "data: " + json.dumps({"type": event_type, **data}) + "\n\n"
     with sse_lock:
         for client in sse_clients.values():
@@ -237,34 +205,6 @@ def generate_audio_bytes(text, gtts_code):
     return buf.read()
 
 
-def play_mp3_bytes(mp3_bytes):
-    if sys.platform == "darwin":
-        import subprocess
-        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
-        tmp.write(mp3_bytes)
-        tmp.flush()
-        tmp.close()
-        subprocess.run(["afplay", tmp.name], check=True)
-        try:
-            os.unlink(tmp.name)
-        except OSError:
-            pass
-    elif sys.platform == "win32":
-        import pygame  # pylint: disable=import-error
-        buf = io.BytesIO(mp3_bytes)
-        pygame.mixer.init(frequency=22050)
-        pygame.mixer.music.load(buf)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            time.sleep(0.05)
-        pygame.mixer.music.stop()
-        pygame.mixer.quit()
-    else:
-        import subprocess
-        proc = subprocess.Popen(["mpg123", "-q", "-"], stdin=subprocess.PIPE)
-        proc.communicate(input=mp3_bytes)
-
-
 def is_speech(frame, threshold=600):
     samples = struct.unpack(str(len(frame) // 2) + "h", frame)
     rms = (sum(s * s for s in samples) / len(samples)) ** 0.5
@@ -342,14 +282,13 @@ def transcription_thread():
                 push_all("status", {"status": "listening"})
                 continue
             if re.search(r"https?://|www\.|\.( com|org|net|uk|co)", english.lower()):
-                print("URL hallucination filtered: " + english[:50])
+                print("URL filtered: " + english[:50])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
             curr = english.strip().lower()
             last = state["last_english"].strip().lower()
             if curr == last:
-                print("Duplicate skipped: " + english[:40])
                 state["status"] = "listening"
                 push_all("status", {"status": "listening"})
                 continue
@@ -357,7 +296,6 @@ def transcription_thread():
                 overlap = len(set(curr.split()) & set(last.split()))
                 total   = max(len(set(curr.split())), len(set(last.split())))
                 if total > 0 and overlap / total > 0.85:
-                    print("Near-duplicate skipped: " + english[:40])
                     state["status"] = "listening"
                     push_all("status", {"status": "listening"})
                     continue
@@ -380,32 +318,33 @@ def transcription_thread():
     print("Transcription thread stopped")
 
 
-def translation_thread():
-    print("Translation thread started")
-    while state["running"] or not text_queue.empty():
+def language_pipeline(lang_code):
+    cfg = LANGUAGES[lang_code]
+    print("Pipeline started: " + cfg["name"])
+    q = lang_text_queues[lang_code]
+    while state["running"] or not q.empty():
         try:
-            english = text_queue.get(timeout=2)
+            english = q.get(timeout=2)
         except queue.Empty:
             continue
         try:
-            lang     = state["speaker_lang"]
-            cfg      = LANGUAGES[lang]
-            translated = translate_text(english, lang)
+            translated = translate_text(english, lang_code)
             print("[" + cfg["name"] + "] " + translated[:50])
-            mp3_bytes  = generate_audio_bytes(translated, cfg["gtts"])
+            mp3_bytes = generate_audio_bytes(translated, cfg["gtts"])
+            b64_audio = base64.b64encode(mp3_bytes).decode("utf-8")
             entry = {
                 "english":    english,
                 "translated": translated,
-                "lang":       lang,
+                "lang":       lang_code,
                 "lang_name":  cfg["name"],
                 "ts":         time.strftime("%H:%M:%S"),
             }
+            push_to_lang(lang_code, "transcript", entry)
+            push_to_lang(lang_code, "audio", {"data": b64_audio})
             push_all("transcript", entry)
-            # Queue for sequential playback - no overlapping
-            playback_queue.put(mp3_bytes)
         except Exception as e:
-            print("Translation error: " + str(e))
-    print("Translation thread stopped")
+            print("Pipeline error [" + lang_code + "]: " + str(e))
+    print("Pipeline stopped: " + cfg["name"])
 
 
 @app.route("/")
@@ -430,8 +369,8 @@ def glossary_page():
 
 @app.route("/<lang_path>")
 def language_listener(lang_path):
-    skip = ["favicon.ico", "static", "api", "stream", "start", "stop",
-            "status", "listen", "qr", "glossary"]
+    skip = ["favicon.ico", "static", "api", "stream", "start",
+            "stop", "status", "listen", "qr", "glossary"]
     if lang_path in skip:
         return ("Not found", 404)
     lcode = PATH_TO_CODE.get(lang_path)
@@ -446,25 +385,22 @@ def language_listener(lang_path):
 
 @app.route("/stream")
 def stream():
+    lang_path = request.args.get("lang", None)
+    lang_code = PATH_TO_CODE.get(lang_path) if lang_path else None
     client_id = str(uuid.uuid4())
     q = queue.Queue()
     with sse_lock:
-        sse_clients[client_id] = {"queue": q}
+        sse_clients[client_id] = {"queue": q, "lang": lang_code}
 
     def generate():
-        init = {
-            "type":   "init",
-            "status": state["status"],
-            "lang":   state["speaker_lang"],
-            "langs":  LANGUAGES,
-        }
+        init = {"type": "init", "status": state["status"], "active": ACTIVE_LANGUAGES}
         yield "data: " + json.dumps(init) + "\n\n"
         try:
             while True:
                 try:
                     yield q.get(timeout=30)
                 except queue.Empty:
-                    yield "data: {\"type\":\"ping\"}\n\n"
+                    yield 'data: {"type":"ping"}\n\n'
         except GeneratorExit:
             pass
         finally:
@@ -488,9 +424,10 @@ def start():
         audio_queue.get_nowait()
     threading.Thread(target=recording_thread,     daemon=True).start()
     threading.Thread(target=transcription_thread, daemon=True).start()
-    threading.Thread(target=translation_thread,   daemon=True).start()
+    for lcode in ACTIVE_LANGUAGES:
+        threading.Thread(target=language_pipeline, args=(lcode,), daemon=True).start()
     push_all("status", {"status": "listening"})
-    return jsonify({"ok": True, "lang": state["speaker_lang"]})
+    return jsonify({"ok": True, "active": ACTIVE_LANGUAGES})
 
 
 @app.route("/stop", methods=["POST"])
@@ -502,10 +439,10 @@ def stop():
 @app.route("/status")
 def get_status():
     return jsonify({
-        "running":      state["running"],
-        "status":       state["status"],
-        "error":        state["error"],
-        "active": ACTIVE_LANGUAGES,
+        "running": state["running"],
+        "status":  state["status"],
+        "error":   state["error"],
+        "active":  ACTIVE_LANGUAGES,
     })
 
 
@@ -576,30 +513,6 @@ def import_glossary():
     return jsonify({"ok": True, "count": len(data), "total": len(g)})
 
 
-@app.route("/api/qr/landing")
-def get_qr_landing():
-    try:
-        import qrcode
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-        finally:
-            s.close()
-        url = "http://" + ip + ":5050/listen"
-        qr  = qrcode.QRCode(version=1, box_size=12, border=4)
-        qr.add_data(url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        return send_file(buf, mimetype="image/png")
-    except Exception as e:
-        return (str(e), 500)
-
-
 @app.route("/api/pronounce", methods=["POST"])
 def pronounce():
     body      = request.get_json()
@@ -619,9 +532,32 @@ def pronounce():
         return (str(e), 500)
 
 
+@app.route("/api/qr/landing")
+def get_qr_landing():
+    try:
+        import qrcode, socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+        url = "http://" + ip + ":5050/listen"
+        qr  = qrcode.QRCode(version=1, box_size=12, border=4)
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png")
+    except Exception as e:
+        return (str(e), 500)
+
+
 if __name__ == "__main__":
-    print("Live Stage Transcription System")
-    print("-" * 42)
+    print("Live Stage Transcription - Phone Listener Mode")
+    print("-" * 50)
     print("Platform : " + SYSTEM)
     print("pyaudio  : " + ("OK" if PYAUDIO_AVAILABLE else "MISSING - pip install pyaudio"))
     print("openai   : " + ("OK" if OPENAI_AVAILABLE else "MISSING - pip install openai"))
@@ -634,9 +570,9 @@ if __name__ == "__main__":
         print("pygame   : " + ("OK" if PYGAME_AVAILABLE else "MISSING - pip install pygame"))
     print("API key  : " + ("SET" if OPENAI_API_KEY else "NOT SET - check .env file"))
     print("Active   : " + ", ".join(LANGUAGES[c]["name"] for c in ACTIVE_LANGUAGES))
-    print("-" * 42)
+    print("-" * 50)
     print("Control  : http://localhost:5050")
     print("Listener : http://localhost:5050/listen")
     print("QR Code  : http://localhost:5050/qr")
-    print("-" * 42)
+    print("-" * 50)
     app.run(host="0.0.0.0", port=5050, debug=False, threaded=True)

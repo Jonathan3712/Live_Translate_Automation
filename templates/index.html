@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Transcription — Control Panel</title>
+<title>Live Transcription — Tamil</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --accent:#7c6af7; --accent2:#f97316; --green:#22c55e; --red:#ef4444; --text:#e8e8f0; --muted:#6b6b80; }
@@ -86,6 +86,20 @@
     </select>
   </div>
 
+  <!-- Listener page directions -->
+  <div class="card span2">
+    <div class="card-title">📱 Congregation Listener Page</div>
+    <div class="url-box" id="listener-url">Loading URL...</div>
+    <div class="link-row">
+      <a class="link-btn primary" id="open-listen" href="/listen" target="_blank">🌐 Open Listener Page</a>
+      <a class="link-btn" href="/qr" target="_blank">📷 Show QR Code</a>
+      <button class="link-btn" onclick="copyURL()">📋 Copy URL</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;">
+      Congregation connects to church WiFi → opens this URL → picks language → taps "Tap to Listen"
+    </div>
+  </div>
+
   <!-- Language selector -->
   <div class="card span2">
     <div class="card-title">🔊 Output Language — spoken through speaker</div>
@@ -126,15 +140,18 @@ function setStatus(s) {
   document.getElementById("dot").className = "dot " + m.cls;
 }
 
+// Only show these three languages
+var ENABLED_LANGS = ["ta", "ur"];
+
 async function loadLanguages() {
   var r = await fetch("/api/languages");
   allLangs = await r.json();
   var pills = document.getElementById("lang-pills");
   pills.innerHTML = "";
-  Object.entries(allLangs).forEach(function(entry) {
-    var code = entry[0];
-    var cfg  = entry[1];
-    var btn  = document.createElement("button");
+  ENABLED_LANGS.forEach(function(code) {
+    var cfg = allLangs[code];
+    if (!cfg) return;
+    var btn = document.createElement("button");
     btn.className = "lang-pill" + (code === currentLang ? " active" : "");
     btn.textContent = cfg.name + " · " + cfg.label;
     btn.dataset.code = code;
@@ -236,6 +253,25 @@ async function stopSystem() {
   document.querySelectorAll(".lang-pill").forEach(function(b) { b.classList.remove("disabled"); });
 }
 
+function loadListenerURL() {
+  var host = window.location.host;
+  var url  = window.location.protocol + "//" + host + "/listen";
+  document.getElementById("listener-url").textContent = url;
+  document.getElementById("open-listen").href = url;
+}
+
+function copyURL() {
+  var host = window.location.host;
+  var url  = window.location.protocol + "//" + host + "/listen";
+  navigator.clipboard.writeText(url).then(function() {
+    var btn = event.target;
+    btn.textContent = "✅ Copied!";
+    setTimeout(function() { btn.textContent = "📋 Copy URL"; }, 2000);
+  }).catch(function() {
+    prompt("Copy this URL:", url);
+  });
+}
+
 async function loadDevices() {
   var r   = await fetch("/api/devices");
   var j   = await r.json();
@@ -261,6 +297,7 @@ async function selectDevice(sel) {
 
 loadLanguages();
 loadDevices();
+loadListenerURL();
 </script>
 </body>
 </html>
