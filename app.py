@@ -73,13 +73,13 @@ HALLUCINATION_EXACT = {
 
 LANGUAGES = {
     "ur":    {"name": "Urdu",    "gtts": "ur",    "label": "\u0627\u0631\u062f\u0648",     "path": "urdu"},
-    "zh-CN": {"name": "Chinese", "gtts": "zh-CN", "label": "\u4e2d\u6587",                    "path": "chinese"},
+    "te": {"name": "Telugu", "gtts": "te", "label": "\u4e2d\u6587",                    "path": "Telugu"},
     "ta":    {"name": "Tamil",   "gtts": "ta",    "label": "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd","path": "tamil"},
 }
 PATH_TO_CODE = {cfg["path"]: code for code, cfg in LANGUAGES.items()}
 
 # --- Edit this list to enable/disable languages ---
-ACTIVE_LANGUAGES = ["ur", "zh-CN", "ta"]
+ACTIVE_LANGUAGES = ["ur", "te", "ta"]
 # --------------------------------------------------
 
 app = Flask(__name__)
